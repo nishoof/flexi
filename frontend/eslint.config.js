@@ -19,5 +19,11 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      'quotes': ['error', 'single', { 'avoidEscape': true }],
+      'jsx-quotes': ['error', 'prefer-double'],
+      'semi': ['error', 'always'],
+      'semi-spacing': ['error', { 'before': false, 'after': true }],
+    },
   },
 ])
