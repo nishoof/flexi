@@ -80,15 +80,37 @@ function getCurrentDate() {
   return new Date().toLocaleDateString('en-CA');
 }
 
-function saveEntry(event: React.FormEvent<HTMLFormElement>, close: () => void) {
+async function saveEntry(event: React.FormEvent<HTMLFormElement>, close: () => void) {
   event.preventDefault();
   close();
 
   const formData = new FormData(event.currentTarget);
-  const flexiBalance = formData.get('flexiBalance');
-  const date = formData.get('date');
+  const flexiBalance = Number(formData.get('flexiBalance'));
+  const date = formData.get('date') as string;
 
-  console.log('Saving entry:', { flexiBalance, date });
+  const apiUrl = import.meta.env.VITE_API_URL;
+  if (typeof apiUrl !== 'string') {
+    console.error('API URL is not defined in environment variables.');
+    return;
+  }
+
+  console.log(JSON.stringify({ amount_remaining: flexiBalance, date }));
+
+  try {
+    const response = await fetch(`${apiUrl}/entries`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ amount_remaining: flexiBalance, date }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Network response was not ok');
+    }
+  } catch (error) {
+    console.error('Error saving entry:', error);
+  }
 }
 
 export default AddEntryModal;
