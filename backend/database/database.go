@@ -12,14 +12,14 @@ var ErrFailedRequest = errors.New("Failed to build request")
 var ErrFailedFetch = errors.New("Failed to fetch data")
 var ErrFailedReadBody = errors.New("Failed to read response body")
 
-func Request(tableName string) (body []byte, err error) {
+func Request(httpMethod, tableName string, data io.Reader) (body []byte, err error) {
 	// Build request
 	API_URL := os.Getenv("DATABASE_API_URL")
 	API_KEY := os.Getenv("DATABASE_API_KEY")
 	if API_URL == "" || API_KEY == "" {
 		return nil, ErrFailedRequest
 	}
-	request, err := http.NewRequest(http.MethodGet, API_URL+"/"+tableName, nil)
+	request, err := http.NewRequest(httpMethod, API_URL+"/"+tableName, data)
 	if err != nil {
 		return nil, ErrFailedRequest
 	}
