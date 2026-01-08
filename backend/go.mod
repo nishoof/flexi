@@ -2,7 +2,10 @@ module github.com/nishoof/flexi/backend
 
 go 1.24.0 // newer versions not supported yet by vercel
 
-require google.golang.org/api v0.214.0
+require (
+	github.com/golang-jwt/jwt/v5 v5.3.0
+	google.golang.org/api v0.214.0
+)
 
 require (
 	cloud.google.com/go/auth v0.13.0 // indirect

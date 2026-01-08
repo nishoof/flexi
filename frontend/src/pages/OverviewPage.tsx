@@ -11,6 +11,7 @@ function OverviewPage() {
     try {
       const response = await fetch(`${apiUrl}/auth`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -18,13 +19,12 @@ function OverviewPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Authentication failed');
+        throw new Error('API request failed');
       }
 
-      const data = await response.json();
-      console.log('Verification successful:', data);
+      console.log('Logged in successfully');
     } catch (error) {
-      console.error('Error verifying credential:', error);
+      console.error('Error logging in:', error);
     }
   };
 
