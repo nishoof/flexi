@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -10,11 +11,14 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/nishoof/flexi/backend/database"
 	"github.com/nishoof/flexi/backend/util"
 	"google.golang.org/api/idtoken"
 )
 
 const jwtExpirationSeconds = 24 * 60 * 60 // 24 hours
+const noUserId = -1
+const tableUsers = "flex_users"
 
 func AuthHandler(w http.ResponseWriter, r *http.Request) {
 	isOptionsRequest := util.HandleCORS(w, r)
@@ -53,11 +57,18 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if user exists in the database, create if not
+	userId, err := getOrCreateUser(email)
+	if err != nil {
+		fmt.Println("Error in getOrCreateUser:", err)
+		http.Error(w, "Failed to get or create user", http.StatusInternalServerError)
+		return
+	}
+
 	// Generate our own JWT
-	token, err := generateJWT(email)
+	token, err := generateJWT(userId)
 	if err != nil {
 		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
-		fmt.Println("Error generating JWT:", err)
 		return
 	}
 
@@ -67,13 +78,10 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
 		Value:    token,
 		Path:     "/",
 		MaxAge:   jwtExpirationSeconds,
-		HttpOnly: true,                  // Not accessible via JavaScript
-		Secure:   true,                  // Only send over HTTPS
-		SameSite: http.SameSiteNoneMode, // CSRF protection
+		HttpOnly: true, // Not accessible via JavaScript
+		Secure:   true, // Only send over HTTPS
+		SameSite: http.SameSiteNoneMode,
 	})
-
-	fmt.Println("User authenticated:", email)
-	fmt.Println("Generated JWT:", token)
 }
 
 func extractCredentialFromRequest(r *http.Request) (string, error) {
@@ -89,7 +97,7 @@ func extractCredentialFromRequest(r *http.Request) (string, error) {
 	return contents.Credential, nil
 }
 
-func generateJWT(email string) (string, error) {
+func generateJWT(userId int64) (string, error) {
 	const tokenExpiration = jwtExpirationSeconds * time.Second
 
 	key := os.Getenv("JWT_KEY")
@@ -104,9 +112,9 @@ func generateJWT(email string) (string, error) {
 	}
 
 	claims := jwt.MapClaims{
-		"email": email,
-		"exp":   time.Now().Add(tokenExpiration).Unix(),
-		"iat":   time.Now().Unix(),
+		"userId": userId,
+		"exp":    time.Now().Add(tokenExpiration).Unix(),
+		"iat":    time.Now().Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
@@ -116,4 +124,59 @@ func generateJWT(email string) (string, error) {
 	}
 
 	return signedToken, nil
+}
+
+func getOrCreateUser(email string) (int64, error) {
+	fmt.Println("getOrCreateUser email:", email)
+	userId, err := getUser(email)
+	if err != nil {
+		return noUserId, err
+	}
+	if userId != noUserId {
+		return userId, nil
+	}
+	return createUser(email)
+}
+
+func getUser(email string) (int64, error) {
+	fmt.Println("getUser email:", email)
+	response, err := database.Request(http.MethodGet, tableUsers+"?email=eq."+email, nil)
+	if err != nil {
+		return noUserId, err
+	}
+
+	type User struct {
+		ID    int64  `json:"id"`
+		Email string `json:"email"`
+	}
+	var users []User
+	err = json.Unmarshal(response, &users)
+	if err != nil {
+		return noUserId, err
+	}
+
+	if len(users) > 0 {
+		return users[0].ID, nil
+	}
+
+	return noUserId, nil
+}
+
+func createUser(email string) (int64, error) {
+	fmt.Println("createUser email:", email)
+	user := map[string]string{
+		"email": email,
+	}
+
+	data, err := json.Marshal(user)
+	if err != nil {
+		return noUserId, fmt.Errorf("Failed to marshal user data: %w", err)
+	}
+
+	_, err = database.Request(http.MethodPost, tableUsers, bytes.NewReader(data))
+	if err != nil {
+		return noUserId, fmt.Errorf("Failed to create user in database: %w", err)
+	}
+
+	return getUser(email)
 }
