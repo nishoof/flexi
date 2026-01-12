@@ -13,29 +13,52 @@ import (
 	"github.com/nishoof/flexi/backend/util"
 )
 
-const table = "flex_entries"
+const tableEntries = "flex_entries"
 
 var errInvalidEntry = errors.New("Invalid entry data")
+var errUnexpectedDbResponse = errors.New("Unexpected response from database")
 
+// Entry represents a flexi entry (how much flexi a user has remaining at a given date).
+// Pointers are used to distinguish between missing and zero values
 type entry struct {
-	AmountRemaining float64 `json:"amount_remaining"`
-	Date            string  `json:"date"`
+	UserId          int64    `json:"user_id"`
+	AmountRemaining *float64 `json:"amount_remaining"`
+	Date            *string  `json:"date"`
 }
 
-func Handler(w http.ResponseWriter, r *http.Request) {
+func EntriesHandler(w http.ResponseWriter, r *http.Request) {
 	isOptionsRequest := util.HandleCORS(w, r)
 	if isOptionsRequest {
 		return
 	}
 
-	var body []byte
-	var err error
+	cookie, err := r.Cookie("auth_token")
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	jwt := cookie.Value
+	valid := util.VerifyJWT(jwt)
+	if !valid {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	userId, err := util.GetUserIdFromJWT(jwt)
+	if err != nil {
+		fmt.Println("Error extracting user ID from JWT:", err)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var response []byte
 
 	switch r.Method {
 	case http.MethodGet:
-		body, err = database.Request(http.MethodGet, table, nil)
+		response, err = getEntry(userId)
 	case http.MethodPost:
-		body, err = addEntry(r.Body)
+		err = createEntry(r.Body, userId)
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -51,39 +74,74 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write(body)
+	w.Write(response)
+
 }
 
-func addEntry(body io.ReadCloser) ([]byte, error) {
-	e := entry{}
+func getEntry(userId int64) ([]byte, error) {
+	query := tableEntries + "?user_id=eq." + fmt.Sprint(userId)
+	responseBody, err := database.Request(http.MethodGet, query, nil)
+	if err != nil {
+		return nil, err
+	}
+	return responseBody, nil
+}
+
+func createEntry(body io.ReadCloser, userId int64) error {
+	entry := entry{}
 	decoder := json.NewDecoder(body)
 	decoder.DisallowUnknownFields()
-	err := decoder.Decode(&e)
+	err := decoder.Decode(&entry)
 	if err != nil {
-		return nil, errInvalidEntry // invalid JSON
+		return errInvalidEntry // invalid JSON
 	}
-	valid := validateEntry(e)
+	entry.UserId = userId
+
+	valid := validateEntry(entry)
 	if !valid {
-		return nil, errInvalidEntry
+		return errInvalidEntry
 	}
 
-	data, err := json.Marshal(e)
+	entryBytes, err := json.Marshal(entry)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to marshal entry data: %w", err)
+		return fmt.Errorf("Failed to marshal entry data: %w", err)
+	}
+	entryReader := bytes.NewReader(entryBytes)
+
+	dbResponse, err := database.Request(http.MethodPost, tableEntries, entryReader)
+	if err != nil {
+		return err
+	}
+	if len(dbResponse) != 0 {
+		return fmt.Errorf("%w: %s", errUnexpectedDbResponse, string(dbResponse))
 	}
 
-	return database.Request(http.MethodPost, table, bytes.NewReader(data))
+	return nil
 }
 
-func validateEntry(e entry) bool {
-	if e.AmountRemaining < 0 {
+func validateEntry(entry entry) bool {
+	// UserId
+	if entry.UserId <= 0 {
 		return false
 	}
-	if e.Date == "" {
+
+	// AmountRemaining
+	if entry.AmountRemaining == nil {
+		return false
+	}
+	if *entry.AmountRemaining < 0 {
+		return false
+	}
+
+	// Date
+	if entry.Date == nil {
+		return false
+	}
+	if *entry.Date == "" {
 		return false
 	}
 	const layout = "2006-01-02" // see https://golang.org/pkg/time/#Time.Format
-	_, err := time.Parse(layout, e.Date)
+	_, err := time.Parse(layout, *entry.Date)
 	if err != nil {
 		return false
 	}

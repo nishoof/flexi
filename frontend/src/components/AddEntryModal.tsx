@@ -99,6 +99,7 @@ async function saveEntry(event: React.FormEvent<HTMLFormElement>, close: () => v
   try {
     const response = await fetch(`${apiUrl}/entries`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },

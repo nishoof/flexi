@@ -3,7 +3,6 @@ package handler
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -100,14 +99,8 @@ func extractCredentialFromRequest(r *http.Request) (string, error) {
 func generateJWT(userId int64) (string, error) {
 	const tokenExpiration = jwtExpirationSeconds * time.Second
 
-	key := os.Getenv("JWT_KEY")
-	if key == "" {
-		fmt.Println("JWT_KEY environment variable is not set")
-		return "", jwt.ErrInvalidKey
-	}
-	byteKey, err := base64.StdEncoding.DecodeString(key)
+	byteKey, err := util.GetByteKey()
 	if err != nil {
-		fmt.Println("Error decoding JWT key:", err)
 		return "", err
 	}
 
