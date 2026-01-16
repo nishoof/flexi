@@ -1,6 +1,18 @@
 import { useEffect, useRef } from 'react';
 
-function AddEntryModal({ isOpen, close }: { isOpen: boolean; close: () => void; }) {
+interface AddEntryModalProps {
+  /** Boolean indicating if the modal is open */
+  isOpen: boolean;
+  /** Function to close the modal */
+  close: () => void;
+  /** Function to be called after an entry is added */
+  onEntryAdded: () => void;
+}
+
+/**
+ * Modal component for adding a new entry 
+ */
+function AddEntryModal({ isOpen, close, onEntryAdded }: Readonly<AddEntryModalProps>) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -24,9 +36,10 @@ function AddEntryModal({ isOpen, close }: { isOpen: boolean; close: () => void; 
           X
         </button>
       </header>
+
       <form
         className="p-4 bg-(--background-light) space-y-4"
-        onSubmit={(event) => saveEntry(event, close)}
+        onSubmit={(event) => saveEntry(event, close, onEntryAdded)}
       >
         {/* Input: Flexi Balance Remaining */}
         <div className="flex flex-col gap-2">
@@ -46,6 +59,7 @@ function AddEntryModal({ isOpen, close }: { isOpen: boolean; close: () => void; 
             required
           />
         </div>
+
         {/* Input: Date */}
         <div className="flex flex-col gap-2">
           <label
@@ -63,6 +77,7 @@ function AddEntryModal({ isOpen, close }: { isOpen: boolean; close: () => void; 
             required
           />
         </div>
+
         {/* Submit Button */}
         <button
           type="submit"
@@ -80,7 +95,7 @@ function getCurrentDate() {
   return new Date().toLocaleDateString('en-CA');
 }
 
-async function saveEntry(event: React.FormEvent<HTMLFormElement>, close: () => void) {
+async function saveEntry(event: React.FormEvent<HTMLFormElement>, close: () => void, onEntryAdded: () => void) {
   event.preventDefault();
   close();
 
@@ -109,6 +124,8 @@ async function saveEntry(event: React.FormEvent<HTMLFormElement>, close: () => v
     if (!response.ok) {
       throw new Error('Network response was not ok');
     }
+
+    onEntryAdded();
   } catch (error) {
     console.error('Error saving entry:', error);
   }

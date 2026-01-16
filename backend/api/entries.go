@@ -56,7 +56,7 @@ func EntriesHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
-		response, err = getEntry(userId)
+		response, err = getEntries(userId)
 	case http.MethodPost:
 		err = createEntry(r.Body, userId)
 	default:
@@ -78,8 +78,8 @@ func EntriesHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func getEntry(userId int64) ([]byte, error) {
-	query := tableEntries + "?user_id=eq." + fmt.Sprint(userId)
+func getEntries(userId int64) ([]byte, error) {
+	query := tableEntries + "?user_id=eq." + fmt.Sprint(userId) + "&order=date.desc"
 	responseBody, err := database.Request(http.MethodGet, query, nil)
 	if err != nil {
 		return nil, err
