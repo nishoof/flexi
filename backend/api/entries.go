@@ -102,6 +102,14 @@ func createEntry(body io.ReadCloser, userId int64) error {
 		return errInvalidEntry
 	}
 
+	duplicate, err := checkEntryExistsByDate(userId, *entry.Date)
+	if err != nil {
+		return err
+	}
+	if duplicate {
+		return fmt.Errorf("%w: An entry for the date %s already exists", errInvalidEntry, *entry.Date)
+	}
+
 	entryBytes, err := json.Marshal(entry)
 	if err != nil {
 		return fmt.Errorf("Failed to marshal entry data: %w", err)
@@ -117,6 +125,22 @@ func createEntry(body io.ReadCloser, userId int64) error {
 	}
 
 	return nil
+}
+
+func checkEntryExistsByDate(userId int64, date string) (bool, error) {
+	query := tableEntries + "?user_id=eq." + fmt.Sprint(userId) + "&date=eq." + date
+	responseBody, err := database.Request(http.MethodGet, query, nil)
+	if err != nil {
+		return false, err
+	}
+
+	var entries []entry
+	err = json.Unmarshal(responseBody, &entries)
+	if err != nil {
+		return false, fmt.Errorf("Failed to unmarshal database response: %w", err)
+	}
+
+	return len(entries) > 0, nil
 }
 
 func validateEntry(entry entry) bool {
