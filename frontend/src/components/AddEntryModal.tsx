@@ -9,10 +9,8 @@ interface AddEntryModalProps {
   onEntryAdded: () => void;
 }
 
-/**
- * Modal component for adding a new entry 
- */
-function AddEntryModal({ isOpen, close, onEntryAdded }: Readonly<AddEntryModalProps>) {
+/** Modal component for adding a new entry */
+export default function AddEntryModal({ isOpen, close, onEntryAdded }: Readonly<AddEntryModalProps>) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -81,7 +79,7 @@ function AddEntryModal({ isOpen, close, onEntryAdded }: Readonly<AddEntryModalPr
         {/* Submit Button */}
         <button
           type="submit"
-          className="w-full px-4 py-2 bg-(--accent) text-white rounded-lg hover:bg-(--accent-dark) font-medium"
+          className="w-full px-4 py-2 bg-(--accent) rounded-lg hover:bg-(--accent-dark) font-medium"
         >
           Save Entry
         </button>
@@ -130,5 +128,3 @@ async function saveEntry(event: React.FormEvent<HTMLFormElement>, close: () => v
     console.error('Error saving entry:', error);
   }
 }
-
-export default AddEntryModal;
