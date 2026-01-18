@@ -1,71 +1,38 @@
-import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import React, { useEffect } from 'react';
 import AddEntryModal from '../components/AddEntryModal';
 import EntriesTable from '../components/EntriesTable';
+import Login from '../components/Login';
 import StatCard from '../components/StatCard';
+import { getApiUrl } from '../lib/api';
 
 export type Entry = {
   amountRemaining: number;
   date: string;
 };
 
-function OverviewPage() {
+export default function OverviewPage() {
   const [isAddEntryModalOpen, setIsAddEntryModalOpen] = React.useState(false);
   const [entries, setEntries] = React.useState<Entry[]>([]);
 
   /** Flexi the user currently has remaining based on their latest entry. This updates automatically when entries change */
   const flexiRemaining = React.useMemo(() => {
-    if (entries.length === 0) return 0;
-    const latestEntry = entries[0];
-    return latestEntry.amountRemaining;
+    return entries[0]?.amountRemaining ?? 0;  // entries are sorted with newest first, so the first entry is the latest
   }, [entries]);
 
   /** Get the latest entries from the API and update the state */
-  const refreshEntries = React.useCallback(async () => {
+  const refreshEntries = React.useEffectEvent(async () => {
     const entries = await getEntries();
     setEntries(entries || []);
-  }, []);
+  });
 
   useEffect(() => {
-    void refreshEntries();
-  }, [refreshEntries]);
-
-  async function handleGoogleLogin(credentialResponse: CredentialResponse) {
-    const credential = credentialResponse.credential;
-    if (!credential) {
-      console.error('No credential received from Google Login');
-      return;
-    }
-
-    try {
-      const apiUrl = getApiUrl();
-
-      const response = await fetch(`${apiUrl}/auth`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ credential }),
-      });
-
-      if (!response.ok) {
-        throw new Error('API request failed');
-      }
-
-      await refreshEntries();
-    } catch (error) {
-      console.error('Error logging in:', error);
-    }
-  }
+    refreshEntries();
+  }, []);
 
   return (
     <div className="flex flex-col gap-4">
       <div className="max-w-3xs">
-        <GoogleLogin
-          onSuccess={handleGoogleLogin}
-          onError={() => console.log('Login Failed')}
-        />
+        <Login onSuccessfulLogin={refreshEntries} />
       </div>
 
       <div className="flex space-x-4">
@@ -128,13 +95,3 @@ async function getEntries(): Promise<Entry[] | null> {
     return null;
   }
 }
-
-function getApiUrl(): string {
-  const apiUrl = import.meta.env.VITE_API_URL;
-  if (typeof apiUrl !== 'string') {
-    throw new TypeError('API URL is not defined in environment variables.');
-  }
-  return apiUrl;
-}
-
-export default OverviewPage;
