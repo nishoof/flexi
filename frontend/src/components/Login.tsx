@@ -1,7 +1,13 @@
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
-import { getApiUrl } from '../lib/api';
+import { login } from '../lib/api';
 
-export default function Login({ onSuccessfulLogin }: Readonly<{ onSuccessfulLogin: () => void }>) {
+interface LoginProps {
+  /** Callback to invoke when login is successful */
+  onSuccessfulLogin: () => void;
+}
+
+/** Component to handle user login using Google OAuth */
+export default function Login({ onSuccessfulLogin }: Readonly<LoginProps>) {
   async function handleGoogleLogin(credentialResponse: CredentialResponse) {
     const credential = credentialResponse.credential;
     if (!credential) {
@@ -9,27 +15,10 @@ export default function Login({ onSuccessfulLogin }: Readonly<{ onSuccessfulLogi
       return;
     }
 
-    try {
-      const apiUrl = getApiUrl();
-
-      const response = await fetch(`${apiUrl}/auth`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ credential }),
-      });
-
-      if (!response.ok) {
-        throw new Error('API request failed');
-      }
-
-      onSuccessfulLogin();
-    } catch (error) {
-      console.error('Error logging in:', error);
-    }
+    await login(credential);
+    onSuccessfulLogin();
   }
+
   return (
     <GoogleLogin
       onSuccess={handleGoogleLogin}

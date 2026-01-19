@@ -3,12 +3,7 @@ import AddEntryModal from '../components/AddEntryModal';
 import EntriesTable from '../components/EntriesTable';
 import Login from '../components/Login';
 import StatCard from '../components/StatCard';
-import { getApiUrl } from '../lib/api';
-
-export type Entry = {
-  amountRemaining: number;
-  date: string;
-};
+import { getEntries, type Entry } from '../lib/api';
 
 export default function OverviewPage() {
   const [isAddEntryModalOpen, setIsAddEntryModalOpen] = React.useState(false);
@@ -63,35 +58,4 @@ export default function OverviewPage() {
       </div>
     </div>
   );
-}
-
-async function getEntries(): Promise<Entry[] | null> {
-  try {
-    const apiUrl = getApiUrl();
-
-    type ApiEntry = {
-      amount_remaining: number;
-      date: string;
-    };
-
-    // Fetch entries from the API
-    // Entries are returned in descending order by date (newest first)
-    const response = await fetch(`${apiUrl}/entries`, {
-      method: 'GET',
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      throw new Error('API request failed');
-    }
-
-    const data: ApiEntry[] = await response.json();
-    return data.map((entry) => ({
-      amountRemaining: entry.amount_remaining,
-      date: entry.date,
-    }));
-  } catch (error) {
-    console.error('Error fetching entries:', error);
-    return null;
-  }
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { createEntry } from '../lib/api';
 
 interface AddEntryModalProps {
   /** Boolean indicating if the modal is open */
@@ -21,6 +22,18 @@ export default function AddEntryModal({ isOpen, close, onEntryAdded }: Readonly<
     }
   }, [isOpen]);
 
+  async function saveEntry(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    close();
+
+    const formData = new FormData(event.currentTarget);
+    const flexiBalance = Number(formData.get('flexiBalance'));
+    const date = formData.get('date') as string;
+
+    await createEntry(flexiBalance, date);
+    onEntryAdded();
+  }
+
   return (
     <dialog
       ref={ref}
@@ -37,7 +50,7 @@ export default function AddEntryModal({ isOpen, close, onEntryAdded }: Readonly<
 
       <form
         className="p-4 bg-(--background-light) space-y-4"
-        onSubmit={(event) => saveEntry(event, close, onEntryAdded)}
+        onSubmit={saveEntry}
       >
         {/* Input: Flexi Balance Remaining */}
         <div className="flex flex-col gap-2">
@@ -91,40 +104,4 @@ export default function AddEntryModal({ isOpen, close, onEntryAdded }: Readonly<
 /* Helper function to get current date (in user's timezone) in YYYY-MM-DD format */
 function getCurrentDate() {
   return new Date().toLocaleDateString('en-CA');
-}
-
-async function saveEntry(event: React.FormEvent<HTMLFormElement>, close: () => void, onEntryAdded: () => void) {
-  event.preventDefault();
-  close();
-
-  const formData = new FormData(event.currentTarget);
-  const flexiBalance = Number(formData.get('flexiBalance'));
-  const date = formData.get('date') as string;
-
-  const apiUrl = import.meta.env.VITE_API_URL;
-  if (typeof apiUrl !== 'string') {
-    console.error('API URL is not defined in environment variables.');
-    return;
-  }
-
-  console.log(JSON.stringify({ amount_remaining: flexiBalance, date }));
-
-  try {
-    const response = await fetch(`${apiUrl}/entries`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ amount_remaining: flexiBalance, date }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Network response was not ok');
-    }
-
-    onEntryAdded();
-  } catch (error) {
-    console.error('Error saving entry:', error);
-  }
 }

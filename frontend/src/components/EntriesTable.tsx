@@ -1,4 +1,4 @@
-import type { Entry } from '../pages/OverviewPage';
+import { type Entry } from '../lib/api';
 
 interface EntriesTableProps {
   /** Array of entries to display. Can be an empty array */
