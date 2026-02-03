@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { createEntry } from '../lib/api';
+import { getCurrentDate } from '../lib/date';
 
 interface AddEntryModalProps {
   /** Boolean indicating if the modal is open */
@@ -99,9 +100,4 @@ export default function AddEntryModal({ isOpen, close, onEntryAdded }: Readonly<
       </form>
     </dialog>
   );
-}
-
-/* Helper function to get current date (in user's timezone) in YYYY-MM-DD format */
-function getCurrentDate() {
-  return new Date().toLocaleDateString('en-CA');
 }

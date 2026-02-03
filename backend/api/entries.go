@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/nishoof/flexi/backend/database"
 	"github.com/nishoof/flexi/backend/util"
@@ -47,7 +46,6 @@ func EntriesHandler(w http.ResponseWriter, r *http.Request) {
 
 	userId, err := util.GetUserIdFromJWT(jwt)
 	if err != nil {
-		fmt.Println("Error extracting user ID from JWT:", err)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -97,7 +95,7 @@ func createEntry(body io.ReadCloser, userId int64) error {
 	}
 	entry.UserId = userId
 
-	valid := validateEntry(entry)
+	valid := isValidEntry(entry)
 	if !valid {
 		return errInvalidEntry
 	}
@@ -143,7 +141,7 @@ func checkEntryExistsByDate(userId int64, date string) (bool, error) {
 	return len(entries) > 0, nil
 }
 
-func validateEntry(entry entry) bool {
+func isValidEntry(entry entry) bool {
 	// UserId
 	if entry.UserId <= 0 {
 		return false
@@ -158,16 +156,5 @@ func validateEntry(entry entry) bool {
 	}
 
 	// Date
-	if entry.Date == nil {
-		return false
-	}
-	if *entry.Date == "" {
-		return false
-	}
-	const layout = "2006-01-02" // see https://golang.org/pkg/time/#Time.Format
-	_, err := time.Parse(layout, *entry.Date)
-	if err != nil {
-		return false
-	}
-	return true
+	return util.IsValidDate(entry.Date)
 }
