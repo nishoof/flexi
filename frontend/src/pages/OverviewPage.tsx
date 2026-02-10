@@ -27,7 +27,6 @@ export default function OverviewPage() {
   const refreshBudget = React.useEffectEvent(async () => {
     const budget = await getBudget();
     setBudget(budget);
-    console.log('Budget updated in OverviewPage:', budget);
   });
 
   /** On component mount, fetch the initial data from the API */
@@ -35,11 +34,6 @@ export default function OverviewPage() {
     refreshEntries();
     refreshBudget();
   }, []);
-
-  // DEBUG: Log state changes
-  useEffect(() => {
-    console.log('OverviewPage budget state updated:', budget);
-  }, [budget]);
 
   return (
     <div className="flex flex-col gap-4">

@@ -9,12 +9,8 @@ export type Budget = {
 }
 
 export async function getBudget(): Promise<Budget> {
-    console.log('Fetching budget from API');
-
     const response = await fetchBackend('budget', 'GET');
     const data: Budget[] = await response.json();
-
-    console.log('Received budget data:', data);
 
     return { holidays: data[0].holidays };
 }

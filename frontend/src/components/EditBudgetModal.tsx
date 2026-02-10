@@ -18,15 +18,6 @@ export default function EditBudgetModal({ isOpen, close, onBudgetUpdated, initia
   const ref = useRef<HTMLDialogElement>(null);
   const [localHolidays, setLocalHolidays] = React.useState<string[]>(initialBudget?.holidays || []);
 
-  // debug printing
-  console.log('EditBudgetModal render');
-  useEffect(() => {
-    console.log('EditBudgetModal Mount');
-    return () => {
-      console.log('EditBudgetModal Unmount');
-    };
-  }, []);
-
   useEffect(() => {
     if (isOpen) {
       ref.current?.showModal();
@@ -38,8 +29,6 @@ export default function EditBudgetModal({ isOpen, close, onBudgetUpdated, initia
   async function saveBudget(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     close();
-
-    console.log('Saving budget with holidays:', localHolidays);
 
     await updateBudget(localHolidays);
     onBudgetUpdated();

@@ -128,8 +128,7 @@ func createDefaultBudget(userId int64) error {
 	}
 	budgetReader := bytes.NewReader(budgetBytes)
 
-	resp, err := database.Request(http.MethodPost, tableBudgets, budgetReader)
-	fmt.Println("Create default budget response:", string(resp))
+	_, err = database.Request(http.MethodPost, tableBudgets, budgetReader)
 	return err
 }
 
