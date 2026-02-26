@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/nishoof/flexi/backend/database"
 	"github.com/nishoof/flexi/backend/util"
@@ -21,9 +20,9 @@ var errUnexpectedDbResponse = errors.New("Unexpected response from database")
 // Entry represents a flexi entry (how much flexi a user has remaining at a given date).
 // Pointers are used to distinguish between missing and zero values
 type entry struct {
-	UserId          int64    `json:"user_id"`
-	AmountRemaining *float64 `json:"amount_remaining"`
-	Date            *string  `json:"date"`
+	UserId          int64      `json:"user_id"`
+	AmountRemaining *float64   `json:"amount_remaining"`
+	Date            *util.Date `json:"date"`
 }
 
 func EntriesHandler(w http.ResponseWriter, r *http.Request) {
@@ -32,23 +31,9 @@ func EntriesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie, err := r.Cookie("auth_token")
+	userId, err := util.AuthenticateUser(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	jwt := cookie.Value
-	valid := util.VerifyJWT(jwt)
-	if !valid {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	userId, err := util.GetUserIdFromJWT(jwt)
-	if err != nil {
-		fmt.Println("Error extracting user ID from JWT:", err)
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
@@ -97,17 +82,17 @@ func createEntry(body io.ReadCloser, userId int64) error {
 	}
 	entry.UserId = userId
 
-	valid := validateEntry(entry)
+	valid := isValidEntry(entry)
 	if !valid {
 		return errInvalidEntry
 	}
 
-	duplicate, err := checkEntryExistsByDate(userId, *entry.Date)
+	duplicate, err := checkEntryExistsByDate(userId, entry.Date)
 	if err != nil {
 		return err
 	}
 	if duplicate {
-		return fmt.Errorf("%w: An entry for the date %s already exists", errInvalidEntry, *entry.Date)
+		return fmt.Errorf("%w: An entry for the date %s already exists", errInvalidEntry, entry.Date.String())
 	}
 
 	entryBytes, err := json.Marshal(entry)
@@ -127,8 +112,9 @@ func createEntry(body io.ReadCloser, userId int64) error {
 	return nil
 }
 
-func checkEntryExistsByDate(userId int64, date string) (bool, error) {
-	query := tableEntries + "?user_id=eq." + fmt.Sprint(userId) + "&date=eq." + date
+func checkEntryExistsByDate(userId int64, date *util.Date) (bool, error) {
+	dateStr := date.String()
+	query := tableEntries + "?user_id=eq." + fmt.Sprint(userId) + "&date=eq." + dateStr
 	responseBody, err := database.Request(http.MethodGet, query, nil)
 	if err != nil {
 		return false, err
@@ -143,7 +129,7 @@ func checkEntryExistsByDate(userId int64, date string) (bool, error) {
 	return len(entries) > 0, nil
 }
 
-func validateEntry(entry entry) bool {
+func isValidEntry(entry entry) bool {
 	// UserId
 	if entry.UserId <= 0 {
 		return false
@@ -158,16 +144,5 @@ func validateEntry(entry entry) bool {
 	}
 
 	// Date
-	if entry.Date == nil {
-		return false
-	}
-	if *entry.Date == "" {
-		return false
-	}
-	const layout = "2006-01-02" // see https://golang.org/pkg/time/#Time.Format
-	_, err := time.Parse(layout, *entry.Date)
-	if err != nil {
-		return false
-	}
-	return true
+	return entry.Date != nil
 }

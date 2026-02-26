@@ -2,6 +2,26 @@
  * This file contains functions to interact with the backend API.
  */
 
+// Budget
+
+export type Budget = {
+    holidays: string[];
+}
+
+export async function getBudget(): Promise<Budget> {
+    const response = await fetchBackend('budget', 'GET');
+    const data: Budget[] = await response.json();
+
+    return { holidays: data[0].holidays };
+}
+
+export async function updateBudget(holidays: string[]): Promise<void> {
+    const budget: Budget = { holidays };
+    await fetchBackend('budget', 'PUT', budget);
+}
+
+// Entry
+
 export type Entry = {
     amountRemaining: number;
     date: string;
@@ -30,9 +50,13 @@ export async function createEntry(amountRemaining: number, date: string): Promis
     await fetchBackend('entries', 'POST', entry);
 }
 
+// Auth
+
 export async function login(credential: string): Promise<void> {
     await fetchBackend('auth', 'POST', { credential });
 }
+
+// Helpers
 
 async function fetchBackend(endpoint: string, method: string, body?: unknown): Promise<Response> {
     const response = await fetch(`${getApiUrl()}/${endpoint}`, {

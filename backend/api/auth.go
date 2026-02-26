@@ -120,7 +120,6 @@ func generateJWT(userId int64) (string, error) {
 }
 
 func getOrCreateUser(email string) (int64, error) {
-	fmt.Println("getOrCreateUser email:", email)
 	userId, err := getUser(email)
 	if err != nil {
 		return noUserId, err
@@ -132,7 +131,6 @@ func getOrCreateUser(email string) (int64, error) {
 }
 
 func getUser(email string) (int64, error) {
-	fmt.Println("getUser email:", email)
 	response, err := database.Request(http.MethodGet, tableUsers+"?email=eq."+email, nil)
 	if err != nil {
 		return noUserId, err
@@ -156,7 +154,6 @@ func getUser(email string) (int64, error) {
 }
 
 func createUser(email string) (int64, error) {
-	fmt.Println("createUser email:", email)
 	user := map[string]string{
 		"email": email,
 	}
