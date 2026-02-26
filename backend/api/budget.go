@@ -28,22 +28,9 @@ func BudgetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie, err := r.Cookie("auth_token")
+	userId, err := util.AuthenticateUser(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	jwt := cookie.Value
-	valid := util.VerifyJWT(jwt)
-	if !valid {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	userId, err := util.GetUserIdFromJWT(jwt)
-	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
