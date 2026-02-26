@@ -20,9 +20,9 @@ var errUnexpectedDbResponse = errors.New("Unexpected response from database")
 // Entry represents a flexi entry (how much flexi a user has remaining at a given date).
 // Pointers are used to distinguish between missing and zero values
 type entry struct {
-	UserId          int64    `json:"user_id"`
-	AmountRemaining *float64 `json:"amount_remaining"`
-	Date            *string  `json:"date"`
+	UserId          int64      `json:"user_id"`
+	AmountRemaining *float64   `json:"amount_remaining"`
+	Date            *util.Date `json:"date"`
 }
 
 func EntriesHandler(w http.ResponseWriter, r *http.Request) {
@@ -100,12 +100,12 @@ func createEntry(body io.ReadCloser, userId int64) error {
 		return errInvalidEntry
 	}
 
-	duplicate, err := checkEntryExistsByDate(userId, *entry.Date)
+	duplicate, err := checkEntryExistsByDate(userId, entry.Date)
 	if err != nil {
 		return err
 	}
 	if duplicate {
-		return fmt.Errorf("%w: An entry for the date %s already exists", errInvalidEntry, *entry.Date)
+		return fmt.Errorf("%w: An entry for the date %s already exists", errInvalidEntry, entry.Date.String())
 	}
 
 	entryBytes, err := json.Marshal(entry)
@@ -125,8 +125,9 @@ func createEntry(body io.ReadCloser, userId int64) error {
 	return nil
 }
 
-func checkEntryExistsByDate(userId int64, date string) (bool, error) {
-	query := tableEntries + "?user_id=eq." + fmt.Sprint(userId) + "&date=eq." + date
+func checkEntryExistsByDate(userId int64, date *util.Date) (bool, error) {
+	dateStr := date.String()
+	query := tableEntries + "?user_id=eq." + fmt.Sprint(userId) + "&date=eq." + dateStr
 	responseBody, err := database.Request(http.MethodGet, query, nil)
 	if err != nil {
 		return false, err
@@ -156,5 +157,5 @@ func isValidEntry(entry entry) bool {
 	}
 
 	// Date
-	return util.IsValidDate(entry.Date)
+	return entry.Date != nil
 }

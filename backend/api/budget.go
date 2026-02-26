@@ -16,10 +16,10 @@ const tableBudgets = "flex_budgets"
 
 var errInvalidBudget = errors.New("Invalid budget data")
 
-// Budget represents a user's budget settings, including holidays (dates where the user does not plan to spend).
-type budget struct {
-	UserId   int64     `json:"user_id"`
-	Holidays []*string `json:"holidays"`
+// Budget represents a user's Budget settings, including holidays (dates where the user does not plan to spend).
+type Budget struct {
+	UserId   int64        `json:"user_id"`
+	Holidays []*util.Date `json:"holidays"`
 }
 
 func BudgetHandler(w http.ResponseWriter, r *http.Request) {
@@ -92,7 +92,7 @@ func getBudget(userId int64) ([]byte, error) {
 }
 
 func updateBudget(body io.ReadCloser, userId int64) error {
-	budget := budget{}
+	budget := Budget{}
 	decoder := json.NewDecoder(body)
 	decoder.DisallowUnknownFields()
 	err := decoder.Decode(&budget)
@@ -117,9 +117,9 @@ func updateBudget(body io.ReadCloser, userId int64) error {
 }
 
 func createDefaultBudget(userId int64) error {
-	defaultBudget := budget{
+	defaultBudget := Budget{
 		UserId:   userId,
-		Holidays: []*string{},
+		Holidays: []*util.Date{},
 	}
 
 	budgetBytes, err := json.Marshal(defaultBudget)
@@ -132,7 +132,7 @@ func createDefaultBudget(userId int64) error {
 	return err
 }
 
-func isValidBudget(budget budget) bool {
+func isValidBudget(budget Budget) bool {
 	// UserId
 	if budget.UserId <= 0 {
 		return false
@@ -140,7 +140,7 @@ func isValidBudget(budget budget) bool {
 
 	// Holidays
 	for _, holiday := range budget.Holidays {
-		if !util.IsValidDate(holiday) {
+		if holiday == nil {
 			return false
 		}
 	}
