@@ -20,11 +20,6 @@ const noUserId = -1
 const tableUsers = "flex_users"
 
 func AuthHandler(w http.ResponseWriter, r *http.Request) {
-	isOptionsRequest := util.HandleCORS(w, r)
-	if isOptionsRequest {
-		return
-	}
-
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
