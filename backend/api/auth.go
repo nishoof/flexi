@@ -15,7 +15,7 @@ import (
 	"google.golang.org/api/idtoken"
 )
 
-const jwtExpirationSeconds = 24 * 60 * 60 // 24 hours
+const jwtExpiration = 24 * time.Hour
 const noUserId = -1
 const tableUsers = "flex_users"
 
@@ -30,15 +30,14 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-
 	if credential == "" {
 		http.Error(w, "Credential is required", http.StatusBadRequest)
 		return
 	}
 
 	// Verify the Google JWT token
-	clientID := os.Getenv("GOOGLE_OAUTH_CLIENT_ID")
-	payload, err := idtoken.Validate(context.Background(), credential, clientID)
+	googleClientID := os.Getenv("GOOGLE_OAUTH_CLIENT_ID")
+	payload, err := idtoken.Validate(context.Background(), credential, googleClientID)
 	if err != nil {
 		http.Error(w, "Invalid Google credential", http.StatusUnauthorized)
 		return
@@ -71,7 +70,7 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
 		Name:     "auth_token",
 		Value:    token,
 		Path:     "/",
-		MaxAge:   jwtExpirationSeconds,
+		MaxAge:   int(jwtExpiration / time.Second),
 		HttpOnly: true, // Not accessible via JavaScript
 		Secure:   true, // Only send over HTTPS
 		SameSite: http.SameSiteNoneMode,
@@ -92,7 +91,7 @@ func extractCredentialFromRequest(r *http.Request) (string, error) {
 }
 
 func generateJWT(userId int64) (string, error) {
-	const tokenExpiration = jwtExpirationSeconds * time.Second
+	const tokenExpiration = jwtExpiration
 
 	byteKey, err := util.GetByteKey()
 	if err != nil {

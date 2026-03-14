@@ -9,8 +9,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// AuthenticateUser checks the "auth_token" cookie for a valid JWT and
-// returns the user ID if valid.
+// Checks a request for a valid JWT in the "auth_token" cookie.
+// Returns the user ID if valid. Error if not.
 func AuthenticateUser(r *http.Request) (int64, error) {
 	cookie, err := r.Cookie("auth_token")
 	if err != nil {
@@ -78,6 +78,6 @@ func verifyJWT(tokenString string) bool {
 
 // Provides the signing key. Used by jwt.Parse
 // https://pkg.go.dev/github.com/golang-jwt/jwt/v5@v5.3.0#Keyfunc
-func keyFunc(token *jwt.Token) (interface{}, error) {
+func keyFunc(token *jwt.Token) (any, error) {
 	return GetByteKey()
 }
