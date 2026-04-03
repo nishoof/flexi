@@ -4,6 +4,7 @@ go 1.24.0 // newer versions not supported yet by vercel
 
 require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
+	github.com/joho/godotenv v1.5.1
 	google.golang.org/api v0.214.0
 )
 

@@ -1,0 +1,88 @@
+package handler
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+
+	"github.com/joho/godotenv"
+	"github.com/nishoof/flexi/backend/database"
+)
+
+const testEntryDate = "2026-03-09"
+
+var testJWTTokenCookie *http.Cookie
+var testUserId int64
+
+func TestMain(m *testing.M) {
+	// Load environment variables from .env file
+	err := godotenv.Load("../.env")
+	if err != nil {
+		fmt.Println("Error loading .env file\n", err)
+		os.Exit(1)
+	}
+
+	setupTestUser()
+
+	token, err := generateJWT(testUserId)
+	if err != nil {
+		fmt.Printf("Failed to generate JWT: %v\n", err)
+		os.Exit(1)
+	}
+	testJWTTokenCookie = &http.Cookie{
+		Name:  "auth_token",
+		Value: token,
+	}
+
+	exitCode := m.Run()
+
+	if err := cleanupTestUser(); err != nil {
+		fmt.Printf("Failed to clean up test user: %v\n", err)
+		os.Exit(1)
+	}
+
+	os.Exit(exitCode)
+}
+
+func setupTestUser() {
+	userId, err := createUser("testuser@nishilanand.com")
+	if err != nil {
+		fmt.Printf("Failed to create test user: %v\n", err)
+		os.Exit(1)
+	}
+	if userId == noUserId {
+		fmt.Println("Failed to create test user: no user ID returned")
+		os.Exit(1)
+	}
+	testUserId = userId
+	fmt.Println("Test user created with ID:", testUserId)
+}
+
+func cleanupTestUser() error {
+	query := fmt.Sprintf("%s?id=eq.%d", tableUsers, testUserId)
+	if _, err := database.Request(http.MethodDelete, query, nil); err != nil {
+		return err
+	}
+	return nil
+}
+
+func sendRequest(method string, url string, body io.Reader, auth *http.Cookie, handler http.HandlerFunc) *httptest.ResponseRecorder {
+	req, _ := http.NewRequest(method, url, body)
+	if auth != nil {
+		req.AddCookie(auth)
+	}
+
+	rr := httptest.NewRecorder()
+	handler(rr, req)
+	return rr
+}
+
+func assertStatusAndBody(t testing.TB, expected, actual int, body *bytes.Buffer) {
+	if actual != expected {
+		t.Fatalf("expected status %d, got %d, body: %s", expected, actual, body.String())
+	}
+}
