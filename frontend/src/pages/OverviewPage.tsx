@@ -5,6 +5,7 @@ import EntriesTable from '../components/EntriesTable';
 import Login from '../components/Login';
 import StatCard from '../components/StatCard';
 import { getBudget, getEntries, type Budget, type Entry } from '../lib/api';
+import { calculateStats } from '../lib/stats';
 
 export default function OverviewPage() {
   const [isAddEntryModalOpen, setIsAddEntryModalOpen] = React.useState(false);
@@ -12,10 +13,7 @@ export default function OverviewPage() {
   const [budget, setBudget] = React.useState<Budget | null>(null);
   const [entries, setEntries] = React.useState<Entry[]>([]);
 
-  /** Flexi the user currently has remaining based on their latest entry. This updates automatically when entries changes */
-  const flexiRemaining = React.useMemo(() => {
-    return entries[0]?.amountRemaining ?? 0;  // entries are sorted with newest first, so the first entry is the latest
-  }, [entries]);
+  const stats = calculateStats(entries);
 
   /** Gets the latest entries from the API and updates the state */
   const refreshEntries = React.useEffectEvent(async () => {
@@ -38,14 +36,17 @@ export default function OverviewPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="max-w-3xs">
-        <Login onSuccessfulLogin={refreshEntries} />
+        <Login onSuccessfulLogin={() => {
+          refreshEntries();
+          refreshBudget();
+        }} />
       </div>
 
       <div className="flex space-x-4">
-        <StatCard title="Flexi Remaining" value={flexiRemaining} />
-        <StatCard title="Flexi Remaining" value={flexiRemaining} />
-        <StatCard title="Flexi Remaining" value={flexiRemaining} />
-        <StatCard title="Flexi Remaining" value={flexiRemaining} />
+        <StatCard title="Flexi Remaining" value={stats.currentFlexiRemaining} />
+        <StatCard title="Avg Daily Spend" value={stats.dailySpend} />
+        <StatCard title="Ending Projection" value={stats.endingProjection} />
+        <StatCard title="Remaining per Day" value={stats.remainingPerDay} />
       </div>
 
       <EditBudgetModal
