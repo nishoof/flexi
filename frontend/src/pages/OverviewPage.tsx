@@ -42,7 +42,7 @@ export default function OverviewPage() {
         }} />
       </div>
 
-      <div className="flex space-x-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard title="Flexi Remaining" value={stats.currentFlexiRemaining} />
         <StatCard title="Avg Daily Spend" value={stats.dailySpend} />
         <StatCard title="Ending Projection" value={stats.endingProjection} />
