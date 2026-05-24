@@ -1,4 +1,5 @@
 import { type Entry } from '../lib/api';
+import { formatDate, formatMoney } from '../lib/format';
 
 interface EntriesTableProps {
   /** Array of entries to display. Can be an empty array */
@@ -9,8 +10,8 @@ interface EntriesTableProps {
 export default function EntriesTable({ entries }: Readonly<EntriesTableProps>) {
   const tableContent = entries.length ? entries.map((entry) => (
     <tr key={entry.date} className="border-t border-(--border)">
-      <td className="px-4 py-2">{entry.date}</td>
-      <td className="px-4 py-2">{entry.amountRemaining}</td>
+      <td className="px-4 py-2">{formatDate(entry.date)}</td>
+      <td className="px-4 py-2">{formatMoney(entry.amountRemaining)}</td>
     </tr>
   )) : (
     <tr className="border-t border-(--border)">

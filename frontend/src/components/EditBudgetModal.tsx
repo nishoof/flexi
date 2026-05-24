@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { updateBudget, type Budget } from '../lib/api';
-import { getCurrentDate } from '../lib/date';
+import { currentDateYYYYmmDD, formatDate } from '../lib/format';
 
 interface EditBudgetModalProps {
   /** Boolean indicating if the modal is open */
@@ -41,7 +41,7 @@ export default function EditBudgetModal({ isOpen, close, onBudgetUpdated, initia
           key={index}
           className="flex justify-between items-center px-3 py-2 border-b border-(--border)"
         >
-          <span>{holiday}</span>
+          <span>{formatDate(holiday)}</span>
           <button
             type="button"
             className="text-red-500"
@@ -58,7 +58,7 @@ export default function EditBudgetModal({ isOpen, close, onBudgetUpdated, initia
         type="date"
         id="newHoliday"
         name="newHoliday"
-        defaultValue={getCurrentDate()}
+        defaultValue={currentDateYYYYmmDD()}
         className="w-full px-3 py-2 bg-(--background) focus:outline-none"
         onKeyDown={(e) => {
           if (e.key !== 'Enter') return;

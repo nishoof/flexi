@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { createEntry } from '../lib/api';
-import { getCurrentDate } from '../lib/date';
+import { currentDateYYYYmmDD } from '../lib/format';
 
 interface AddEntryModalProps {
   /** Boolean indicating if the modal is open */
@@ -84,7 +84,7 @@ export default function AddEntryModal({ isOpen, close, onEntryAdded }: Readonly<
             type="date"
             id="date"
             name="date"
-            defaultValue={getCurrentDate()}
+            defaultValue={currentDateYYYYmmDD()}
             className="px-3 py-2 border border-(--border) rounded-lg bg-(--background) focus:outline-none"
             required
           />
