@@ -15,7 +15,9 @@ export default function EntriesTable({ entries }: Readonly<EntriesTableProps>) {
     </tr>
   )) : (
     <tr className="border-t border-(--border)">
-      <td className="px-4 py-2 text-center" colSpan={2}>No entries available</td>
+      <td className="px-4 py-2 text-center text-(--foreground)/70" colSpan={2}>
+        No entries yet — add your first entry below
+      </td>
     </tr>
   );
 

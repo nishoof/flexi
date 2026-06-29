@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { updateBudget, type Budget } from '../lib/api';
+import { isAuthError, updateBudget, type Budget } from '../lib/api';
 import { currentDateYYYYmmDD, formatDate } from '../lib/format';
 
 interface EditBudgetModalProps {
@@ -11,10 +11,18 @@ interface EditBudgetModalProps {
   onBudgetUpdated: () => void;
   /** Initial budget data to populate the modal */
   initialBudget: Budget | null;
+  /** Called when the session is no longer valid */
+  onUnauthorized: () => void;
 }
 
 /** Modal component for editing the budget */
-export default function EditBudgetModal({ isOpen, close, onBudgetUpdated, initialBudget }: Readonly<EditBudgetModalProps>) {
+export default function EditBudgetModal({
+  isOpen,
+  close,
+  onBudgetUpdated,
+  initialBudget,
+  onUnauthorized,
+}: Readonly<EditBudgetModalProps>) {
   const ref = useRef<HTMLDialogElement>(null);
   const [localHolidays, setLocalHolidays] = React.useState<string[]>(initialBudget?.holidays || []);
 
@@ -30,8 +38,14 @@ export default function EditBudgetModal({ isOpen, close, onBudgetUpdated, initia
     event.preventDefault();
     close();
 
-    await updateBudget(localHolidays);
-    onBudgetUpdated();
+    try {
+      await updateBudget(localHolidays);
+      onBudgetUpdated();
+    } catch (error) {
+      if (isAuthError(error)) {
+        onUnauthorized();
+      }
+    }
   }
 
   const holidayList = (

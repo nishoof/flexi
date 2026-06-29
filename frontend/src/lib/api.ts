@@ -2,6 +2,17 @@
  * This file contains functions to interact with the backend API.
  */
 
+export class AuthError extends Error {
+    constructor(message = 'Unauthorized') {
+        super(message);
+        this.name = 'AuthError';
+    }
+}
+
+export function isAuthError(error: unknown): error is AuthError {
+    return error instanceof AuthError;
+}
+
 // Budget
 
 export type Budget = {
@@ -67,6 +78,9 @@ async function fetchBackend(endpoint: string, method: string, body?: unknown): P
     });
 
     if (!response.ok) {
+        if (response.status === 401) {
+            throw new AuthError();
+        }
         throw new Error('API request failed');
     }
 
