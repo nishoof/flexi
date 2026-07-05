@@ -65,13 +65,7 @@ func getBudget(ctx context.Context, userId int64) ([]byte, error) {
 		`SELECT holidays FROM app.budgets WHERE user_id = $1`, userId,
 	).Scan(&holidays)
 
-	if errors.Is(err, pgx.ErrNoRows) {
-		if err := createDefaultBudget(ctx, userId); err != nil {
-			return nil, err
-		}
-		return getBudget(ctx, userId)
-	}
-	if err != nil {
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
 	}
 
@@ -112,20 +106,6 @@ func updateBudget(ctx context.Context, body io.ReadCloser, userId int64) error {
 	if err != nil {
 		fmt.Println("Error updating budget in database:", err)
 	}
-	return err
-}
-
-func createDefaultBudget(ctx context.Context, userId int64) error {
-	pool, err := database.Pool(ctx)
-	if err != nil {
-		return err
-	}
-	_, err = pool.Exec(ctx,
-		`INSERT INTO app.budgets (user_id, holidays)
-		 VALUES ($1, '[]'::jsonb)
-		 ON CONFLICT (user_id) DO NOTHING`,
-		userId,
-	)
 	return err
 }
 
