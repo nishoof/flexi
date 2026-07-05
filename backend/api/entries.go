@@ -63,7 +63,7 @@ func getEntries(ctx context.Context, userId int64) ([]byte, error) {
 
 	rows, err := pool.Query(ctx,
 		`SELECT amount_remaining, date
-		 FROM flex_entries
+		 FROM app.entries
 		 WHERE user_id = $1
 		 ORDER BY date DESC`, userId)
 	if err != nil {
@@ -112,7 +112,7 @@ func createEntry(ctx context.Context, body io.ReadCloser, userId int64) error {
 	}
 
 	tag, err := pool.Exec(ctx,
-		`INSERT INTO flex_entries (user_id, amount_remaining, date)
+		`INSERT INTO app.entries (user_id, amount_remaining, date)
 		 VALUES ($1, $2, $3)
 		 ON CONFLICT (user_id, date) DO NOTHING`,
 		userId, *e.AmountRemaining, e.Date.String())

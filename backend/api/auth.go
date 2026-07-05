@@ -119,7 +119,7 @@ func getOrCreateUser(ctx context.Context, email string) (int64, error) {
 	}
 	var id int64
 	err = pool.QueryRow(ctx,
-		`INSERT INTO flex_users (email)
+		`INSERT INTO app.users (email)
 		 VALUES ($1)
 		 ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
 		 RETURNING id`,

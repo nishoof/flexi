@@ -62,7 +62,7 @@ func getBudget(ctx context.Context, userId int64) ([]byte, error) {
 
 	var holidays []byte
 	err = pool.QueryRow(ctx,
-		`SELECT holidays FROM flex_budgets WHERE user_id = $1`, userId,
+		`SELECT holidays FROM app.budgets WHERE user_id = $1`, userId,
 	).Scan(&holidays)
 
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -104,7 +104,7 @@ func updateBudget(ctx context.Context, body io.ReadCloser, userId int64) error {
 	}
 
 	_, err = pool.Exec(ctx,
-		`INSERT INTO flex_budgets (user_id, holidays)
+		`INSERT INTO app.budgets (user_id, holidays)
 		 VALUES ($1, $2::jsonb)
 		 ON CONFLICT (user_id) DO UPDATE SET holidays = EXCLUDED.holidays`,
 		userId, string(holidays),
@@ -121,7 +121,7 @@ func createDefaultBudget(ctx context.Context, userId int64) error {
 		return err
 	}
 	_, err = pool.Exec(ctx,
-		`INSERT INTO flex_budgets (user_id, holidays)
+		`INSERT INTO app.budgets (user_id, holidays)
 		 VALUES ($1, '[]'::jsonb)
 		 ON CONFLICT (user_id) DO NOTHING`,
 		userId,

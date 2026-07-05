@@ -151,7 +151,7 @@ func registerEntriesCleanup(t *testing.T, userId int64) {
 
 	t.Cleanup(func() {
 		_, err := pool.Exec(context.Background(),
-			`DELETE FROM flex_entries
+			`DELETE FROM app.entries
 			 WHERE user_id=$1`,
 			userId)
 		if err != nil {

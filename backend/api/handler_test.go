@@ -70,7 +70,7 @@ func cleanupTestUser() error {
 	}
 
 	_, err = pool.Exec(context.Background(),
-		`DELETE FROM flex_users
+		`DELETE FROM app.users
 		 WHERE id=$1`,
 		testUserId)
 	if err != nil {

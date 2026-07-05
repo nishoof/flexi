@@ -101,7 +101,7 @@ func registerBudgetCleanup(t testing.TB, userId int64) {
 
 	t.Cleanup(func() {
 		_, err := pool.Exec(context.Background(),
-			`DELETE FROM flex_budgets
+			`DELETE FROM app.budgets
 			 WHERE user_id=$1`,
 			userId)
 		if err != nil {
