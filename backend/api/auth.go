@@ -113,18 +113,11 @@ func generateJWT(userId int64) (string, error) {
 }
 
 func getOrCreateUser(ctx context.Context, email string) (int64, error) {
-	pool, err := database.Pool(ctx)
+	queries, err := database.Queries(ctx)
 	if err != nil {
 		return noUserId, err
 	}
-	var id int64
-	err = pool.QueryRow(ctx,
-		`INSERT INTO app.users (email)
-		 VALUES ($1)
-		 ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
-		 RETURNING id`,
-		email,
-	).Scan(&id) // DO UPDATE makes sure a row is returned even if the user already exists
+	id, err := queries.GetOrCreateUser(ctx, email)
 	if err != nil {
 		return noUserId, err
 	}

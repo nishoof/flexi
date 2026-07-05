@@ -64,16 +64,12 @@ func setupTestUser() {
 }
 
 func cleanupTestUser() error {
-	pool, err := database.Pool(context.Background())
+	queries, err := database.Queries(context.Background())
 	if err != nil {
-		return fmt.Errorf("failed to get database pool: %w", err)
+		return fmt.Errorf("failed to get database queries: %w", err)
 	}
 
-	_, err = pool.Exec(context.Background(),
-		`DELETE FROM app.users
-		 WHERE id=$1`,
-		testUserId)
-	if err != nil {
+	if err := queries.DeleteUser(context.Background(), testUserId); err != nil {
 		return fmt.Errorf("failed to delete test user: %w", err)
 	}
 	return nil

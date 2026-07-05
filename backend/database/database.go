@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/nishoof/flexi/backend/repository"
 )
 
 var (
@@ -43,4 +44,12 @@ func Pool(ctx context.Context) (*pgxpool.Pool, error) {
 		pool, initErr = pgxpool.NewWithConfig(ctx, config)
 	})
 	return pool, initErr
+}
+
+func Queries(ctx context.Context) (*repository.Queries, error) {
+	pool, err := Pool(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return repository.New(pool), nil
 }
