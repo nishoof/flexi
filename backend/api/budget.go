@@ -1,18 +1,17 @@
 package handler
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/nishoof/flexi/backend/database"
 	"github.com/nishoof/flexi/backend/util"
 )
-
-const tableBudgets = "flex_budgets"
 
 var errInvalidBudget = errors.New("Invalid budget data")
 
@@ -30,12 +29,13 @@ func BudgetHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var response []byte
+	ctx := r.Context()
 
 	switch r.Method {
 	case http.MethodGet:
-		response, err = getBudget(userId)
+		response, err = getBudget(ctx, userId)
 	case http.MethodPut:
-		err = updateBudget(r.Body, userId)
+		err = updateBudget(ctx, r.Body, userId)
 	default:
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
@@ -54,78 +54,89 @@ func BudgetHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(response)
 }
 
-func getBudget(userId int64) ([]byte, error) {
-	query := tableBudgets + "?user_id=eq." + fmt.Sprint(userId)
-	responseBody, err := database.Request(http.MethodGet, query, nil)
+func getBudget(ctx context.Context, userId int64) ([]byte, error) {
+	pool, err := database.Pool(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(responseBody) == 2 { // empty array: "[]"
-		// No budget found for user, so create a default one
-		err = createDefaultBudget(userId)
-		if err != nil {
+	var holidays []byte
+	err = pool.QueryRow(ctx,
+		`SELECT holidays FROM flex_budgets WHERE user_id = $1`, userId,
+	).Scan(&holidays)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		if err := createDefaultBudget(ctx, userId); err != nil {
 			return nil, err
 		}
-		return getBudget(userId)
+		return getBudget(ctx, userId)
+	}
+	if err != nil {
+		return nil, err
 	}
 
-	return responseBody, nil
+	return json.Marshal([]map[string]json.RawMessage{
+		{"holidays": holidays},
+	})
 }
 
-func updateBudget(body io.ReadCloser, userId int64) error {
+func updateBudget(ctx context.Context, body io.ReadCloser, userId int64) error {
 	budget := Budget{}
 	decoder := json.NewDecoder(body)
 	decoder.DisallowUnknownFields()
-	err := decoder.Decode(&budget)
-	if err != nil {
+	if err := decoder.Decode(&budget); err != nil {
 		return errInvalidBudget
 	}
 	budget.UserId = userId
 
-	valid := isValidBudget(budget)
-	if !valid {
+	if !isValidBudget(budget) {
 		return errInvalidBudget
 	}
 
-	budgetBytes, err := json.Marshal(budget)
+	pool, err := database.Pool(ctx)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal budget data: %w", err)
+		return err
 	}
-	budgetReader := bytes.NewReader(budgetBytes)
 
-	_, err = database.Request(http.MethodPatch, tableBudgets+"?user_id=eq."+fmt.Sprint(userId), budgetReader)
+	holidays, err := json.Marshal(budget.Holidays)
+	if err != nil {
+		return err
+	}
+
+	_, err = pool.Exec(ctx,
+		`INSERT INTO flex_budgets (user_id, holidays)
+		 VALUES ($1, $2::jsonb)
+		 ON CONFLICT (user_id) DO UPDATE SET holidays = EXCLUDED.holidays`,
+		userId, string(holidays),
+	)
+	if err != nil {
+		fmt.Println("Error updating budget in database:", err)
+	}
 	return err
 }
 
-func createDefaultBudget(userId int64) error {
-	defaultBudget := Budget{
-		UserId:   userId,
-		Holidays: []*util.Date{},
-	}
-
-	budgetBytes, err := json.Marshal(defaultBudget)
+func createDefaultBudget(ctx context.Context, userId int64) error {
+	pool, err := database.Pool(ctx)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal default budget data: %w", err)
+		return err
 	}
-	budgetReader := bytes.NewReader(budgetBytes)
-
-	_, err = database.Request(http.MethodPost, tableBudgets, budgetReader)
+	_, err = pool.Exec(ctx,
+		`INSERT INTO flex_budgets (user_id, holidays)
+		 VALUES ($1, '[]'::jsonb)
+		 ON CONFLICT (user_id) DO NOTHING`,
+		userId,
+	)
 	return err
 }
 
 func isValidBudget(budget Budget) bool {
-	// UserId
 	if budget.UserId <= 0 {
 		return false
 	}
-
-	// Holidays
 	for _, holiday := range budget.Holidays {
 		if holiday == nil {
 			return false
 		}
 	}
-
 	return true
 }

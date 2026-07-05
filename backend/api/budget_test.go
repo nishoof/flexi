@@ -2,11 +2,14 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/nishoof/flexi/backend/database"
 )
 
 func TestBudgetHandler(t *testing.T) {
@@ -53,6 +56,10 @@ func TestBudgetHandlerMethodNotAllowed(t *testing.T) {
 }
 
 func TestBudgetHandlerPUT(t *testing.T) {
+	registerBudgetCleanup(t, testUserId)
+
+	// Empty
+
 	body := map[string]interface{}{
 		"holidays": []string{},
 	}
@@ -60,6 +67,22 @@ func TestBudgetHandlerPUT(t *testing.T) {
 
 	rr := sendBudgetRequestAuthed(http.MethodPut, bytes.NewReader(bodyBytes))
 	assertStatusAndBody(t, http.StatusOK, rr.Code, rr.Body)
+
+	// One
+
+	body = map[string]interface{}{
+		"holidays": []string{"2026-07-31"},
+	}
+	bodyBytes, _ = json.Marshal(body)
+
+	rr = sendBudgetRequestAuthed(http.MethodPut, bytes.NewReader(bodyBytes))
+	assertStatusAndBody(t, http.StatusOK, rr.Code, rr.Body)
+
+	// Multiple
+
+	body = map[string]interface{}{
+		"holidays": []string{"2026-07-31", "2026-04-06"},
+	}
 }
 
 func sendBudgetRequestAuthed(method string, body io.Reader) *httptest.ResponseRecorder {
@@ -68,4 +91,21 @@ func sendBudgetRequestAuthed(method string, body io.Reader) *httptest.ResponseRe
 
 func sendBudgetRequest(method string, body io.Reader, auth *http.Cookie) *httptest.ResponseRecorder {
 	return sendRequest(method, "/api/budget", body, auth, BudgetHandler)
+}
+
+func registerBudgetCleanup(t testing.TB, userId int64) {
+	pool, err := database.Pool(context.Background())
+	if err != nil {
+		t.Fatalf("Failed to get database pool: %v", err)
+	}
+
+	t.Cleanup(func() {
+		_, err := pool.Exec(context.Background(),
+			`DELETE FROM flex_budgets
+			 WHERE user_id=$1`,
+			userId)
+		if err != nil {
+			t.Fatalf("Failed to clean up budget: %v", err)
+		}
+	})
 }

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -49,7 +50,7 @@ func TestMain(m *testing.M) {
 }
 
 func setupTestUser() {
-	userId, err := createUser("testuser@nishilanand.com")
+	userId, err := getOrCreateUser(context.Background(), "testuser@nishilanand.com")
 	if err != nil {
 		fmt.Printf("Failed to create test user: %v\n", err)
 		os.Exit(1)
@@ -63,9 +64,17 @@ func setupTestUser() {
 }
 
 func cleanupTestUser() error {
-	query := fmt.Sprintf("%s?id=eq.%d", tableUsers, testUserId)
-	if _, err := database.Request(http.MethodDelete, query, nil); err != nil {
-		return err
+	pool, err := database.Pool(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to get database pool: %w", err)
+	}
+
+	_, err = pool.Exec(context.Background(),
+		`DELETE FROM flex_users
+		 WHERE id=$1`,
+		testUserId)
+	if err != nil {
+		return fmt.Errorf("failed to delete test user: %w", err)
 	}
 	return nil
 }

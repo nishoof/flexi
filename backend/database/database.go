@@ -1,45 +1,46 @@
 package database
 
 import (
+	"context"
 	"errors"
-	"io"
-	"net/http"
 	"os"
-	"time"
+	"sync"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var ErrFailedRequest = errors.New("Failed to build request")
-var ErrFailedFetch = errors.New("Failed to fetch data")
-var ErrFailedReadBody = errors.New("Failed to read response body")
+var (
+	pool    *pgxpool.Pool
+	once    sync.Once
+	initErr error
+)
 
-func Request(httpMethod, query string, data io.Reader) (body []byte, err error) {
-	// Build request
-	API_URL := os.Getenv("DATABASE_API_URL")
-	API_KEY := os.Getenv("DATABASE_API_KEY")
-	if API_URL == "" || API_KEY == "" {
-		return nil, ErrFailedRequest
-	}
-	request, err := http.NewRequest(httpMethod, API_URL+"/"+query, data)
-	if err != nil {
-		return nil, ErrFailedRequest
-	}
-	request.Header.Add("apikey", API_KEY)
+// Returns a lazily-initialized pgx pool, reused across warm Lambda invocations.
+func Pool(ctx context.Context) (*pgxpool.Pool, error) {
+	once.Do(func() {
+		connString := os.Getenv("DATABASE_URL")
+		if connString == "" {
+			initErr = errors.New("DATABASE_URL is not set")
+			return
+		}
+		config, err := pgxpool.ParseConfig(connString)
+		if err != nil {
+			initErr = err
+			return
+		}
 
-	// Send request
-	client := &http.Client{
-		Timeout: time.Second * 10,
-	}
-	response, err := client.Do(request)
-	if err != nil {
-		return nil, ErrFailedFetch
-	}
-	defer response.Body.Close()
+		// 1 connection to Supavisor (pooler, like pgbouncer)
+		config.MaxConns = 1
 
-	// Read response body
-	body, err = io.ReadAll(response.Body)
-	if err != nil {
-		return nil, ErrFailedReadBody
-	}
+		// Disable caching stuff such as prepared statements
+		// Transaction pooling can give a different connection, so caching causes issues
+		// For example, if we prepare a statement on one connection, then the next transaction is on a different connection, the prepared statement won't exist there.
+		config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeExec
+		config.ConnConfig.StatementCacheCapacity = 0
+		config.ConnConfig.DescriptionCacheCapacity = 0
 
-	return body, nil
+		pool, initErr = pgxpool.NewWithConfig(ctx, config)
+	})
+	return pool, initErr
 }

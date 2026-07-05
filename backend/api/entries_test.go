@@ -2,8 +2,8 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -144,8 +144,18 @@ func sendEntriesRequest(method string, body io.Reader, auth *http.Cookie) *httpt
 }
 
 func registerEntriesCleanup(t *testing.T, userId int64) {
+	pool, err := database.Pool(context.Background())
+	if err != nil {
+		t.Fatalf("Failed to get database pool: %v", err)
+	}
+
 	t.Cleanup(func() {
-		query := fmt.Sprintf("flex_entries?user_id=eq.%d", testUserId)
-		database.Request(http.MethodDelete, query, nil)
+		_, err := pool.Exec(context.Background(),
+			`DELETE FROM flex_entries
+			 WHERE user_id=$1`,
+			userId)
+		if err != nil {
+			t.Fatalf("Failed to cleanup entries: %v", err)
+		}
 	})
 }

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -17,7 +16,6 @@ import (
 
 const jwtExpiration = 24 * time.Hour
 const noUserId = -1
-const tableUsers = "flex_users"
 
 func AuthHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -36,8 +34,9 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify the Google JWT token
+	ctx := r.Context()
 	googleClientID := os.Getenv("GOOGLE_OAUTH_CLIENT_ID")
-	payload, err := idtoken.Validate(context.Background(), credential, googleClientID)
+	payload, err := idtoken.Validate(ctx, credential, googleClientID)
 	if err != nil {
 		http.Error(w, "Invalid Google credential", http.StatusUnauthorized)
 		return
@@ -51,7 +50,7 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if user exists in the database, create if not
-	userId, err := getOrCreateUser(email)
+	userId, err := getOrCreateUser(ctx, email)
 	if err != nil {
 		fmt.Println("Error in getOrCreateUser:", err)
 		http.Error(w, "Failed to get or create user", http.StatusInternalServerError)
@@ -113,54 +112,21 @@ func generateJWT(userId int64) (string, error) {
 	return signedToken, nil
 }
 
-func getOrCreateUser(email string) (int64, error) {
-	userId, err := getUser(email)
+func getOrCreateUser(ctx context.Context, email string) (int64, error) {
+	pool, err := database.Pool(ctx)
 	if err != nil {
 		return noUserId, err
 	}
-	if userId != noUserId {
-		return userId, nil
-	}
-	return createUser(email)
-}
-
-func getUser(email string) (int64, error) {
-	response, err := database.Request(http.MethodGet, tableUsers+"?email=eq."+email, nil)
+	var id int64
+	err = pool.QueryRow(ctx,
+		`INSERT INTO flex_users (email)
+		 VALUES ($1)
+		 ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
+		 RETURNING id`,
+		email,
+	).Scan(&id) // DO UPDATE makes sure a row is returned even if the user already exists
 	if err != nil {
 		return noUserId, err
 	}
-
-	type User struct {
-		ID    int64  `json:"id"`
-		Email string `json:"email"`
-	}
-	var users []User
-	err = json.Unmarshal(response, &users)
-	if err != nil {
-		return noUserId, err
-	}
-
-	if len(users) > 0 {
-		return users[0].ID, nil
-	}
-
-	return noUserId, nil
-}
-
-func createUser(email string) (int64, error) {
-	user := map[string]string{
-		"email": email,
-	}
-
-	data, err := json.Marshal(user)
-	if err != nil {
-		return noUserId, fmt.Errorf("Failed to marshal user data: %w", err)
-	}
-
-	_, err = database.Request(http.MethodPost, tableUsers, bytes.NewReader(data))
-	if err != nil {
-		return noUserId, fmt.Errorf("Failed to create user in database: %w", err)
-	}
-
-	return getUser(email)
+	return id, nil
 }

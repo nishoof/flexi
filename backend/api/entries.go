@@ -1,21 +1,19 @@
 package handler
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/nishoof/flexi/backend/database"
 	"github.com/nishoof/flexi/backend/util"
 )
 
-const tableEntries = "flex_entries"
-
 var errInvalidEntry = errors.New("Invalid entry data")
-var errUnexpectedDbResponse = errors.New("Unexpected response from database")
 
 // Entry represents a flexi entry (how much flexi a user has remaining at a given date).
 // Pointers are used to distinguish between missing and zero values
@@ -33,12 +31,13 @@ func EntriesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var response []byte
+	ctx := r.Context()
 
 	switch r.Method {
 	case http.MethodGet:
-		response, err = getEntries(userId)
+		response, err = getEntries(ctx, userId)
 	case http.MethodPost:
-		err = createEntry(r.Body, userId)
+		err = createEntry(ctx, r.Body, userId)
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -48,80 +47,82 @@ func EntriesHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Write(response)
-
 }
 
-func getEntries(userId int64) ([]byte, error) {
-	query := tableEntries + "?user_id=eq." + fmt.Sprint(userId) + "&order=date.desc"
-	responseBody, err := database.Request(http.MethodGet, query, nil)
+func getEntries(ctx context.Context, userId int64) ([]byte, error) {
+	pool, err := database.Pool(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return responseBody, nil
+
+	rows, err := pool.Query(ctx,
+		`SELECT amount_remaining, date
+		 FROM flex_entries
+		 WHERE user_id = $1
+		 ORDER BY date DESC`, userId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	response := make([]map[string]any, 0, 100)
+	for rows.Next() {
+		var scannedAmount float64
+		var scannedDate time.Time
+		if err := rows.Scan(&scannedAmount, &scannedDate); err != nil {
+			return nil, err
+		}
+		date, err := util.NewDate(scannedDate.Format("2006-01-02"))
+		if err != nil {
+			return nil, err
+		}
+		response = append(response, map[string]any{
+			"amount_remaining": &scannedAmount,
+			"date":             date,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return json.Marshal(response)
 }
 
-func createEntry(body io.ReadCloser, userId int64) error {
-	entry := entry{}
+func createEntry(ctx context.Context, body io.ReadCloser, userId int64) error {
+	e := entry{}
 	decoder := json.NewDecoder(body)
 	decoder.DisallowUnknownFields()
-	err := decoder.Decode(&entry)
-	if err != nil {
-		return errInvalidEntry // invalid JSON
+	if err := decoder.Decode(&e); err != nil {
+		return errInvalidEntry
 	}
-	entry.UserId = userId
+	e.UserId = userId
 
-	valid := isValidEntry(entry)
-	if !valid {
+	if !isValidEntry(e) {
 		return errInvalidEntry
 	}
 
-	duplicate, err := checkEntryExistsByDate(userId, entry.Date)
+	pool, err := database.Pool(ctx)
 	if err != nil {
 		return err
 	}
-	if duplicate {
-		return fmt.Errorf("%w: An entry for the date %s already exists", errInvalidEntry, entry.Date.String())
-	}
 
-	entryBytes, err := json.Marshal(entry)
-	if err != nil {
-		return fmt.Errorf("Failed to marshal entry data: %w", err)
-	}
-	entryReader := bytes.NewReader(entryBytes)
-
-	dbResponse, err := database.Request(http.MethodPost, tableEntries, entryReader)
+	tag, err := pool.Exec(ctx,
+		`INSERT INTO flex_entries (user_id, amount_remaining, date)
+		 VALUES ($1, $2, $3)
+		 ON CONFLICT (user_id, date) DO NOTHING`,
+		userId, *e.AmountRemaining, e.Date.String())
 	if err != nil {
 		return err
 	}
-	if len(dbResponse) != 0 {
-		return fmt.Errorf("%w: %s", errUnexpectedDbResponse, string(dbResponse))
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("%w: An entry for the date %s already exists", errInvalidEntry, e.Date.String())
 	}
-
 	return nil
-}
-
-func checkEntryExistsByDate(userId int64, date *util.Date) (bool, error) {
-	dateStr := date.String()
-	query := tableEntries + "?user_id=eq." + fmt.Sprint(userId) + "&date=eq." + dateStr
-	responseBody, err := database.Request(http.MethodGet, query, nil)
-	if err != nil {
-		return false, err
-	}
-
-	var entries []entry
-	err = json.Unmarshal(responseBody, &entries)
-	if err != nil {
-		return false, fmt.Errorf("Failed to unmarshal database response: %w", err)
-	}
-
-	return len(entries) > 0, nil
 }
 
 func isValidEntry(entry entry) bool {
