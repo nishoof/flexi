@@ -1,26 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import AddEntryModal from '../components/AddEntryModal';
-import EditBudgetModal from '../components/EditBudgetModal';
+import EditTermModal from '../components/EditTermModal';
 import EntriesTable from '../components/EntriesTable';
 import LoadingView from '../components/LoadingView';
 import SignInScreen from '../components/SignInScreen';
 import StatCard from '../components/StatCard';
 import {
-  getBudget,
   getEntries,
+  getTerm,
   isAuthError,
-  type Budget,
   type Entry,
+  type Term,
 } from '../lib/api';
 import { calculateStats } from '../lib/stats';
 
-type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
+type AuthStatus = 'unauthenticated' | 'loading' | 'authenticated';
 
 export default function OverviewPage() {
   const [authStatus, setAuthStatus] = useState<AuthStatus>('loading');
   const [isAddEntryModalOpen, setIsAddEntryModalOpen] = useState(false);
-  const [isEditBudgetModalOpen, setIsEditBudgetModalOpen] = useState(false);
-  const [budget, setBudget] = useState<Budget | null>(null);
+  const [isEditTermModalOpen, setIsEditTermModalOpen] = useState(false);
+  const [term, setTerm] = useState<Term | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
 
   const stats = calculateStats(entries);
@@ -28,7 +28,7 @@ export default function OverviewPage() {
   const handleUnauthorized = React.useEffectEvent(() => {
     // Drop any data that belonged to the previous session so the sign-in
     // screen cannot flash stale stats or entries.
-    setBudget(null);
+    setTerm(null);
     setEntries([]);
     setAuthStatus('unauthenticated');
   });
@@ -44,10 +44,10 @@ export default function OverviewPage() {
     }
   });
 
-  const refreshBudget = React.useEffectEvent(async () => {
+  const refreshTerm = React.useEffectEvent(async () => {
     try {
-      const fetchedBudget = await getBudget();
-      setBudget(fetchedBudget);
+      const fetchedTerm = await getTerm();
+      setTerm(fetchedTerm);
     } catch (error) {
       if (isAuthError(error)) {
         handleUnauthorized();
@@ -55,17 +55,16 @@ export default function OverviewPage() {
     }
   });
 
-  // Fetches budget and entries in parallel, then reveals the dashboard in one step
+  // Fetches term and entries in parallel, then reveals the dashboard in one step
   // so the loading spinner covers both requests (~max of the two, not their sum).
   const initialLoad = React.useEffectEvent(async () => {
     try {
-      // getBudget doubles as a session probe: 401 without a cookie, and the
-      // backend auto-creates a default budget for new users.
-      const [fetchedBudget, fetchedEntries] = await Promise.all([
-        getBudget(),
+      // also a session probe: 401 without a cookie
+      const [fetchedTerm, fetchedEntries] = await Promise.all([
+        getTerm(),
         getEntries(),
       ]);
-      setBudget(fetchedBudget);
+      setTerm(fetchedTerm);
       setEntries(fetchedEntries);
       setAuthStatus('authenticated');
     } catch (error) {
@@ -86,12 +85,12 @@ export default function OverviewPage() {
     initialLoad();
   }, []);
 
-  if (authStatus === 'loading') {
-    return <LoadingView />;
-  }
-
   if (authStatus === 'unauthenticated') {
     return <SignInScreen onSuccessfulLogin={handleSuccessfulLogin} />;
+  }
+
+  if (authStatus === 'loading') {
+    return <LoadingView />;
   }
 
   return (
@@ -103,21 +102,21 @@ export default function OverviewPage() {
         <StatCard title="Remaining per Day" value={stats.remainingPerDay} />
       </div>
 
-      <EditBudgetModal
-        key={budget?.holidays.join(',')} // Force remount when holidays change
-        isOpen={isEditBudgetModalOpen}
-        close={() => setIsEditBudgetModalOpen(false)}
-        onBudgetUpdated={refreshBudget}
-        initialBudget={budget}
+      <EditTermModal
+        key={term?.daysOff.join(',')} // Force remount when days off change
+        isOpen={isEditTermModalOpen}
+        close={() => setIsEditTermModalOpen(false)}
+        onTermUpdated={refreshTerm}
+        initialTerm={term}
         onUnauthorized={handleUnauthorized}
       />
 
       <button
         type="button"
-        onClick={() => setIsEditBudgetModalOpen(true)}
+        onClick={() => setIsEditTermModalOpen(true)}
         className="w-full px-4 py-2 bg-(--accent) rounded-lg hover:bg-(--accent-dark) font-medium"
       >
-        Edit Budget
+        Edit Term
       </button>
 
       <div className="flex flex-col gap-2">

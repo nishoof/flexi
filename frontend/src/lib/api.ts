@@ -13,22 +13,42 @@ export function isAuthError(error: unknown): error is AuthError {
     return error instanceof AuthError;
 }
 
-// Budget
+// Term
 
-export type Budget = {
-    holidays: string[];
+export type Term = {
+    id?: number;
+    name: string;
+    endDate: string;
+    isActive: boolean;
+    daysOff: string[];
+};
+
+type ApiTerm = {
+    id?: number;
+    name: string;
+    end_date?: string;
+    is_active?: boolean;
+    days_off: string[];
+};
+
+export async function getTerm(): Promise<Term> {
+    const response = await fetchBackend('terms', 'GET');
+    const data: ApiTerm = await response.json();
+
+    return {
+        id: data.id,
+        name: data.name,
+        endDate: data.end_date ?? '',
+        isActive: data.is_active ?? false,
+        daysOff: data.days_off ?? [],
+    };
 }
 
-export async function getBudget(): Promise<Budget> {
-    const response = await fetchBackend('budget', 'GET');
-    const data: Budget[] = await response.json();
-
-    return { holidays: data[0].holidays };
-}
-
-export async function updateBudget(holidays: string[]): Promise<void> {
-    const budget: Budget = { holidays };
-    await fetchBackend('budget', 'PUT', budget);
+export async function updateTerm(term: Pick<Term, 'name' | 'daysOff'>): Promise<void> {
+    await fetchBackend('terms', 'PUT', {
+        name: term.name,
+        days_off: term.daysOff,
+    });
 }
 
 // Entry
