@@ -18,7 +18,7 @@ var (
 )
 
 // Returns a lazily-initialized pgx pool, reused across warm Lambda invocations.
-func Pool(ctx context.Context) (*pgxpool.Pool, error) {
+func getPool(ctx context.Context) (*pgxpool.Pool, error) {
 	once.Do(func() {
 		connString := os.Getenv("DATABASE_URL")
 		if connString == "" {
@@ -47,9 +47,25 @@ func Pool(ctx context.Context) (*pgxpool.Pool, error) {
 }
 
 func Queries(ctx context.Context) (*repository.Queries, error) {
-	pool, err := Pool(ctx)
+	pool, err := getPool(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return repository.New(pool), nil
+}
+
+func QueriesWithTx(ctx context.Context) (*repository.Queries, pgx.Tx, error) {
+	pool, err := getPool(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	qtx := repository.New(tx)
+
+	return qtx, tx, nil
 }

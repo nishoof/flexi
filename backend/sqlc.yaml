@@ -8,12 +8,10 @@ sql:
         package: "repository"
         out: "repository"
         sql_package: "pgx/v5"
-        overrides:
-          - column: "app.budgets.holidays"
-            go_type: "string"
 overrides:
   go:
     rename:
-      app_budget: Budget
       app_entry: Entry
+      app_term_days_off: TermDaysOff
+      app_term: Term
       app_user: User

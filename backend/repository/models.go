@@ -8,17 +8,25 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type Budget struct {
-	ID       int64
-	UserID   int64
-	Holidays string
-}
-
 type Entry struct {
 	ID              int64
 	UserID          int64
 	AmountRemaining float64
 	Date            pgtype.Date
+}
+
+type Term struct {
+	ID        int64
+	UserID    int64
+	Name      string
+	EndDate   pgtype.Date
+	IsActive  bool
+	CreatedAt pgtype.Timestamptz
+}
+
+type TermDaysOff struct {
+	TermID int64
+	Date   pgtype.Date
 }
 
 type User struct {
