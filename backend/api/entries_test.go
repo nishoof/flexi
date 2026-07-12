@@ -144,17 +144,13 @@ func sendEntriesRequest(method string, body io.Reader, auth *http.Cookie) *httpt
 }
 
 func registerEntriesCleanup(t *testing.T, userId int64) {
-	pool, err := database.Pool(context.Background())
+	queries, err := database.Queries(context.Background())
 	if err != nil {
-		t.Fatalf("Failed to get database pool: %v", err)
+		t.Fatalf("Failed to get database queries: %v", err)
 	}
 
 	t.Cleanup(func() {
-		_, err := pool.Exec(context.Background(),
-			`DELETE FROM app.entries
-			 WHERE user_id=$1`,
-			userId)
-		if err != nil {
+		if err := queries.DeleteEntriesByUser(context.Background(), userId); err != nil {
 			t.Fatalf("Failed to cleanup entries: %v", err)
 		}
 	})

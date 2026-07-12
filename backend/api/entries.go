@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/nishoof/flexi/backend/database"
+	"github.com/nishoof/flexi/backend/repository"
 	"github.com/nishoof/flexi/backend/util"
 )
 
@@ -56,39 +57,27 @@ func EntriesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getEntries(ctx context.Context, userId int64) ([]byte, error) {
-	pool, err := database.Pool(ctx)
+	queries, err := database.Queries(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	rows, err := pool.Query(ctx,
-		`SELECT amount_remaining, date
-		 FROM app.entries
-		 WHERE user_id = $1
-		 ORDER BY date DESC`, userId)
+	rows, err := queries.ListEntries(ctx, userId)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	response := make([]map[string]any, 0, 100)
-	for rows.Next() {
-		var scannedAmount float64
-		var scannedDate time.Time
-		if err := rows.Scan(&scannedAmount, &scannedDate); err != nil {
-			return nil, err
-		}
-		date, err := util.NewDate(scannedDate.Format("2006-01-02"))
+	response := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		date, err := util.NewDate(row.Date.Time.Format("2006-01-02"))
 		if err != nil {
 			return nil, err
 		}
+		amount := row.AmountRemaining
 		response = append(response, map[string]any{
-			"amount_remaining": &scannedAmount,
+			"amount_remaining": &amount,
 			"date":             date,
 		})
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
 	}
 	return json.Marshal(response)
 }
@@ -106,20 +95,23 @@ func createEntry(ctx context.Context, body io.ReadCloser, userId int64) error {
 		return errInvalidEntry
 	}
 
-	pool, err := database.Pool(ctx)
+	queries, err := database.Queries(ctx)
 	if err != nil {
 		return err
 	}
 
-	tag, err := pool.Exec(ctx,
-		`INSERT INTO app.entries (user_id, amount_remaining, date)
-		 VALUES ($1, $2, $3)
-		 ON CONFLICT (user_id, date) DO NOTHING`,
-		userId, *e.AmountRemaining, e.Date.String())
+	rowsAffected, err := queries.CreateEntry(ctx, repository.CreateEntryParams{
+		UserID:          userId,
+		AmountRemaining: *e.AmountRemaining,
+		Date: pgtype.Date{
+			Time:  e.Date.Time,
+			Valid: true,
+		},
+	})
 	if err != nil {
 		return err
 	}
-	if tag.RowsAffected() == 0 {
+	if rowsAffected == 0 {
 		return fmt.Errorf("%w: An entry for the date %s already exists", errInvalidEntry, e.Date.String())
 	}
 	return nil
