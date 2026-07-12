@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/nishoof/flexi/backend/database"
+	"github.com/nishoof/flexi/backend/repository"
 	"github.com/nishoof/flexi/backend/util"
 )
 
@@ -55,22 +55,23 @@ func BudgetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getBudget(ctx context.Context, userId int64) ([]byte, error) {
-	pool, err := database.Pool(ctx)
+	queries, err := database.Queries(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var holidays []byte
-	err = pool.QueryRow(ctx,
-		`SELECT holidays FROM app.budgets WHERE user_id = $1`, userId,
-	).Scan(&holidays)
-
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	holidays, err := queries.GetHolidays(ctx, userId)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return json.Marshal([]map[string]any{
+			{"holidays": nil},
+		})
+	}
+	if err != nil {
 		return nil, err
 	}
 
 	return json.Marshal([]map[string]json.RawMessage{
-		{"holidays": holidays},
+		{"holidays": json.RawMessage(holidays)},
 	})
 }
 
@@ -87,26 +88,20 @@ func updateBudget(ctx context.Context, body io.ReadCloser, userId int64) error {
 		return errInvalidBudget
 	}
 
-	pool, err := database.Pool(ctx)
-	if err != nil {
-		return err
-	}
-
 	holidays, err := json.Marshal(budget.Holidays)
 	if err != nil {
 		return err
 	}
 
-	_, err = pool.Exec(ctx,
-		`INSERT INTO app.budgets (user_id, holidays)
-		 VALUES ($1, $2::jsonb)
-		 ON CONFLICT (user_id) DO UPDATE SET holidays = EXCLUDED.holidays`,
-		userId, string(holidays),
-	)
+	queries, err := database.Queries(ctx)
 	if err != nil {
-		fmt.Println("Error updating budget in database:", err)
+		return err
 	}
-	return err
+
+	return queries.UpsertBudget(ctx, repository.UpsertBudgetParams{
+		UserID:   userId,
+		Holidays: string(holidays),
+	})
 }
 
 func isValidBudget(budget Budget) bool {

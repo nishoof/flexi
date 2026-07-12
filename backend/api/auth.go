@@ -117,9 +117,11 @@ func getOrCreateUser(ctx context.Context, email string) (int64, error) {
 	if err != nil {
 		return noUserId, err
 	}
+
 	id, err := queries.GetOrCreateUser(ctx, email)
 	if err != nil {
 		return noUserId, err
 	}
+
 	return id, nil
 }

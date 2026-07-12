@@ -83,6 +83,10 @@ func TestBudgetHandlerPUT(t *testing.T) {
 	body = map[string]interface{}{
 		"holidays": []string{"2026-07-31", "2026-04-06"},
 	}
+	bodyBytes, _ = json.Marshal(body)
+
+	rr = sendBudgetRequestAuthed(http.MethodPut, bytes.NewReader(bodyBytes))
+	assertStatusAndBody(t, http.StatusOK, rr.Code, rr.Body)
 }
 
 func sendBudgetRequestAuthed(method string, body io.Reader) *httptest.ResponseRecorder {
@@ -94,17 +98,13 @@ func sendBudgetRequest(method string, body io.Reader, auth *http.Cookie) *httpte
 }
 
 func registerBudgetCleanup(t testing.TB, userId int64) {
-	pool, err := database.Pool(context.Background())
+	queries, err := database.Queries(context.Background())
 	if err != nil {
-		t.Fatalf("Failed to get database pool: %v", err)
+		t.Fatalf("Failed to get database queries: %v", err)
 	}
 
 	t.Cleanup(func() {
-		_, err := pool.Exec(context.Background(),
-			`DELETE FROM app.budgets
-			 WHERE user_id=$1`,
-			userId)
-		if err != nil {
+		if err := queries.DeleteBudgetByUser(context.Background(), userId); err != nil {
 			t.Fatalf("Failed to clean up budget: %v", err)
 		}
 	})

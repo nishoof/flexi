@@ -11,7 +11,7 @@ import (
 type Budget struct {
 	ID       int64
 	UserID   int64
-	Holidays []byte
+	Holidays string
 }
 
 type Entry struct {
