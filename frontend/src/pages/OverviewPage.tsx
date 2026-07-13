@@ -23,7 +23,7 @@ export default function OverviewPage() {
   const [term, setTerm] = useState<Term | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
 
-  const stats = calculateStats(entries);
+  const stats = calculateStats(entries, term);
 
   const handleUnauthorized = React.useEffectEvent(() => {
     // Drop any data that belonged to the previous session so the sign-in
@@ -103,7 +103,7 @@ export default function OverviewPage() {
       </div>
 
       <EditTermModal
-        key={term?.daysOff.join(',')} // Force remount when days off change
+        key={`${term?.daysOff.join(',')}-${term?.endDate}`} // Force remount when term settings change
         isOpen={isEditTermModalOpen}
         close={() => setIsEditTermModalOpen(false)}
         onTermUpdated={refreshTerm}

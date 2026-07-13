@@ -15,6 +15,8 @@ export function isAuthError(error: unknown): error is AuthError {
 
 // Term
 
+const defaultEndDate = '2026-05-23';
+
 export type Term = {
     id?: number;
     name: string;
@@ -26,8 +28,8 @@ export type Term = {
 type ApiTerm = {
     id?: number;
     name: string;
-    end_date?: string;
-    is_active?: boolean;
+    end_date: string | null;
+    is_active: boolean;
     days_off: string[];
 };
 
@@ -38,15 +40,22 @@ export async function getTerm(): Promise<Term> {
     return {
         id: data.id,
         name: data.name,
-        endDate: data.end_date ?? '',
-        isActive: data.is_active ?? false,
-        daysOff: data.days_off ?? [],
+        endDate: data.end_date ?? defaultEndDate,
+        isActive: data.is_active,
+        daysOff: data.days_off,
     };
 }
 
-export async function updateTerm(term: Pick<Term, 'name' | 'daysOff'>): Promise<void> {
+type TermUpdate = {
+    name: string;
+    endDate: string;
+    daysOff: string[];
+};
+
+export async function updateTerm(term: TermUpdate): Promise<void> {
     await fetchBackend('terms', 'PUT', {
         name: term.name,
+        end_date: term.endDate,
         days_off: term.daysOff,
     });
 }

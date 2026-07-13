@@ -26,6 +26,7 @@ type termResponse struct {
 
 type termUpdate struct {
 	Name    string       `json:"name"`
+	EndDate *util.Date   `json:"end_date"`
 	DaysOff []*util.Date `json:"days_off"`
 }
 
@@ -68,7 +69,7 @@ func getTerm(ctx context.Context, userId int64) ([]byte, error) {
 		return nil, err
 	}
 
-	term, err := queries.GetActiveTerm(ctx, userId)
+	term, err := queries.GetActiveTerm(ctx, userId) // TODO: replace with get or create?
 	if errors.Is(err, pgx.ErrNoRows) {
 		return json.Marshal(termResponse{
 			Name:    "",
@@ -116,10 +117,8 @@ func updateTerm(ctx context.Context, body io.ReadCloser, userId int64) error {
 		return errInvalidTerm
 	}
 
-	for _, dayOff := range update.DaysOff {
-		if dayOff == nil {
-			return errInvalidTerm
-		}
+	if !isValidTermUpdate(update) {
+		return errInvalidTerm
 	}
 
 	qtx, tx, err := database.QueriesWithTx(ctx)
@@ -128,7 +127,7 @@ func updateTerm(ctx context.Context, body io.ReadCloser, userId int64) error {
 	}
 	defer tx.Rollback(ctx)
 
-	termID, err := getOrCreateActiveTermID(ctx, qtx, userId, update.Name)
+	termID, err := getOrCreateActiveTermID(ctx, qtx, userId, update.Name, update.EndDate)
 	if err != nil {
 		return err
 	}
@@ -136,6 +135,10 @@ func updateTerm(ctx context.Context, body io.ReadCloser, userId int64) error {
 	if err := qtx.UpdateActiveTerm(ctx, repository.UpdateActiveTermParams{
 		ID:   termID,
 		Name: update.Name,
+		EndDate: pgtype.Date{
+			Time:  update.EndDate.Time,
+			Valid: true,
+		},
 	}); err != nil {
 		return err
 	}
@@ -159,18 +162,12 @@ func updateTerm(ctx context.Context, body io.ReadCloser, userId int64) error {
 	return tx.Commit(ctx)
 }
 
-func getOrCreateActiveTermID(ctx context.Context, queries *repository.Queries, userId int64, name string) (int64, error) {
+func getOrCreateActiveTermID(ctx context.Context, queries *repository.Queries, userId int64, name string, endDate *util.Date) (int64, error) {
 	term, err := queries.GetActiveTerm(ctx, userId)
 	if err == nil {
 		return term.ID, nil
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
-		return 0, err
-	}
-
-	const defaultEndDate = "2026-05-23"
-	endDate, err := util.NewDate(defaultEndDate)
-	if err != nil {
 		return 0, err
 	}
 
@@ -182,4 +179,16 @@ func getOrCreateActiveTermID(ctx context.Context, queries *repository.Queries, u
 			Valid: true,
 		},
 	})
+}
+
+func isValidTermUpdate(update termUpdate) bool {
+	if update.EndDate == nil {
+		return false
+	}
+	for _, dayOff := range update.DaysOff {
+		if dayOff == nil {
+			return false
+		}
+	}
+	return true
 }

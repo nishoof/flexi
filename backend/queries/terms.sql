@@ -10,7 +10,7 @@ RETURNING id;
 
 -- name: UpdateActiveTerm :exec
 UPDATE app.terms
-SET name = $2
+SET name = $2, end_date = $3
 WHERE id = $1;
 
 -- name: ListDaysOff :many

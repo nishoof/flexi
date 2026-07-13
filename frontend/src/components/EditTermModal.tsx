@@ -3,6 +3,7 @@ import { isAuthError, updateTerm, type Term } from '../lib/api';
 import { currentDateYYYYmmDD, formatDate } from '../lib/format';
 
 const defaultTermName = 'Spring 2026';
+const defaultEndDate = '2026-05-23';
 
 interface EditTermModalProps {
   /** Boolean indicating if the modal is open */
@@ -27,6 +28,7 @@ export default function EditTermModal({
 }: Readonly<EditTermModalProps>) {
   const ref = useRef<HTMLDialogElement>(null);
   const [localDaysOff, setLocalDaysOff] = React.useState<string[]>(initialTerm?.daysOff ?? []);
+  const [localEndDate, setLocalEndDate] = React.useState(initialTerm?.endDate || defaultEndDate);
 
   useEffect(() => {
     if (isOpen) {
@@ -43,6 +45,7 @@ export default function EditTermModal({
     try {
       await updateTerm({
         name: initialTerm?.name || defaultTermName,
+        endDate: localEndDate,
         daysOff: localDaysOff,
       });
       onTermUpdated();
@@ -111,6 +114,25 @@ export default function EditTermModal({
         className="p-4 bg-(--background-light) space-y-4"
         onSubmit={saveTerm}
       >
+        {/* End date */}
+        <div className="flex flex-col gap-2">
+          <label
+            htmlFor="endDate"
+            className="font-medium"
+          >
+            End date
+          </label>
+          <input
+            type="date"
+            id="endDate"
+            name="endDate"
+            value={localEndDate}
+            onChange={(e) => setLocalEndDate(e.target.value)}
+            className="w-full px-3 py-2 bg-(--background-lightish) border border-(--border) rounded-lg focus:outline-none"
+            required
+          />
+        </div>
+
         {/* Days off */}
         <div className="flex flex-col gap-2">
           <label

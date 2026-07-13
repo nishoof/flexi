@@ -62,6 +62,7 @@ func TestTermsHandlerPUT(t *testing.T) {
 
 	body := map[string]interface{}{
 		"name":     "Spring 2026",
+		"end_date": "2026-05-23",
 		"days_off": []string{},
 	}
 	bodyBytes, _ := json.Marshal(body)
@@ -73,6 +74,7 @@ func TestTermsHandlerPUT(t *testing.T) {
 
 	body = map[string]interface{}{
 		"name":     "Spring 2026",
+		"end_date": "2026-05-23",
 		"days_off": []string{"2026-07-31"},
 	}
 	bodyBytes, _ = json.Marshal(body)
@@ -84,12 +86,53 @@ func TestTermsHandlerPUT(t *testing.T) {
 
 	body = map[string]interface{}{
 		"name":     "Spring 2026",
+		"end_date": "2026-05-23",
 		"days_off": []string{"2026-07-31", "2026-04-06"},
 	}
 	bodyBytes, _ = json.Marshal(body)
 
 	rr = sendTermRequestAuthed(http.MethodPut, bytes.NewReader(bodyBytes))
 	assertStatusAndBody(t, http.StatusOK, rr.Code, rr.Body)
+}
+
+func TestTermsHandlerPUTValidation(t *testing.T) {
+	registerTermCleanup(t, testUserId)
+
+	subTests := []struct {
+		name         string
+		body         interface{}
+		expectedCode int
+	}{
+		{"missing end_date", map[string]interface{}{
+			"name":     "Spring 2026",
+			"days_off": []string{},
+		}, http.StatusBadRequest},
+		{"invalid end_date", map[string]interface{}{
+			"name":     "Spring 2026",
+			"end_date": "not-a-date",
+			"days_off": []string{},
+		}, http.StatusBadRequest},
+		{"invalid JSON", "not-json", http.StatusBadRequest},
+	}
+
+	for _, st := range subTests {
+		t.Run(st.name, func(tt *testing.T) {
+			var bodyBytes []byte
+			switch v := st.body.(type) {
+			case string:
+				bodyBytes = []byte(v)
+			default:
+				var err error
+				bodyBytes, err = json.Marshal(st.body)
+				if err != nil {
+					tt.Fatalf("Failed to marshal body: %v", err)
+				}
+			}
+
+			rr := sendTermRequestAuthed(http.MethodPut, bytes.NewReader(bodyBytes))
+			assertStatusAndBody(tt, st.expectedCode, rr.Code, rr.Body)
+		})
+	}
 }
 
 func sendTermRequestAuthed(method string, body io.Reader) *httptest.ResponseRecorder {

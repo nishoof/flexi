@@ -1,4 +1,4 @@
-import type { Entry } from './api';
+import type { Entry, Term } from './api';
 
 export type Stats = {
     currentFlexiRemaining: number;
@@ -8,16 +8,18 @@ export type Stats = {
 }
 
 /**
- * Calculates the stats based on the given entries.
+ * Calculates the stats based on the given entries and term.
  * Entries must be in reverse chronological order (most recent first).
  */
-export function calculateStats(entries: Entry[]): Stats {
+export function calculateStats(entries: Entry[], term: Term | null): Stats {
     const numEntries = entries.length;
     const mostRecentEntry = entries[0];
     const oldestEntry = entries[numEntries - 1];
 
-    const endDateStr = '2026-05-23'; // last date that the user is on campus. // TODO: get from somewhere else instead of hardcoded. probably add to budget
-    const daysRemaining = numEntries > 0 ? calculateDateDifference(mostRecentEntry.date, endDateStr) : 0;
+    const endDateStr = term?.endDate ?? '';
+    const daysRemaining = numEntries > 0 && endDateStr
+        ? calculateDateDifference(mostRecentEntry.date, endDateStr)
+        : 0;
 
     const currentFlexiRemaining = mostRecentEntry?.amountRemaining ?? 0;
 

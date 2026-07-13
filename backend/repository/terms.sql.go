@@ -114,16 +114,17 @@ func (q *Queries) ListDaysOff(ctx context.Context, termID int64) ([]pgtype.Date,
 
 const updateActiveTerm = `-- name: UpdateActiveTerm :exec
 UPDATE app.terms
-SET name = $2
+SET name = $2, end_date = $3
 WHERE id = $1
 `
 
 type UpdateActiveTermParams struct {
-	ID   int64
-	Name string
+	ID      int64
+	Name    string
+	EndDate pgtype.Date
 }
 
 func (q *Queries) UpdateActiveTerm(ctx context.Context, arg UpdateActiveTermParams) error {
-	_, err := q.db.Exec(ctx, updateActiveTerm, arg.ID, arg.Name)
+	_, err := q.db.Exec(ctx, updateActiveTerm, arg.ID, arg.Name, arg.EndDate)
 	return err
 }
