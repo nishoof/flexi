@@ -13,6 +13,8 @@ import (
 	"github.com/nishoof/flexi/backend/util"
 )
 
+const testEntryDate = "2026-03-09"
+
 func TestEntriesHandler(t *testing.T) {
 	rr := sendEntriesPostRequest(t, 1000.50, testEntryDate)
 	if rr.Code != http.StatusOK {

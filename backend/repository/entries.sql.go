@@ -12,9 +12,11 @@ import (
 )
 
 const createEntry = `-- name: CreateEntry :execrows
-INSERT INTO app.entries (user_id, amount_remaining, date)
-VALUES ($1, $2, $3)
-ON CONFLICT (user_id, date) DO NOTHING
+INSERT INTO app.entries (term_id, amount_remaining, date)
+SELECT t.id, $2, $3
+FROM app.terms t
+WHERE t.user_id = $1 AND t.is_active = true
+ON CONFLICT (term_id, date) DO NOTHING
 `
 
 type CreateEntryParams struct {
@@ -32,8 +34,11 @@ func (q *Queries) CreateEntry(ctx context.Context, arg CreateEntryParams) (int64
 }
 
 const deleteEntriesByUser = `-- name: DeleteEntriesByUser :exec
-DELETE FROM app.entries
-WHERE user_id = $1
+DELETE FROM app.entries e
+USING app.terms t
+WHERE e.term_id = t.id
+  AND t.user_id = $1
+  AND t.is_active = true
 `
 
 func (q *Queries) DeleteEntriesByUser(ctx context.Context, userID int64) error {
@@ -42,10 +47,11 @@ func (q *Queries) DeleteEntriesByUser(ctx context.Context, userID int64) error {
 }
 
 const listEntries = `-- name: ListEntries :many
-SELECT amount_remaining, date
-FROM app.entries
-WHERE user_id = $1
-ORDER BY date DESC
+SELECT e.amount_remaining, e.date
+FROM app.entries e
+JOIN app.terms t ON t.id = e.term_id
+WHERE t.user_id = $1 AND t.is_active = true
+ORDER BY e.date DESC
 `
 
 type ListEntriesRow struct {

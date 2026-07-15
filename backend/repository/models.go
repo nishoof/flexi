@@ -10,9 +10,9 @@ import (
 
 type Entry struct {
 	ID              int64
-	UserID          int64
 	AmountRemaining float64
 	Date            pgtype.Date
+	TermID          int64
 }
 
 type Term struct {

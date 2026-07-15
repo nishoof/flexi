@@ -2,14 +2,11 @@ package handler
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/nishoof/flexi/backend/database"
 )
 
 func TestTermsHandler(t *testing.T) {
@@ -56,8 +53,6 @@ func TestTermsHandlerMethodNotAllowed(t *testing.T) {
 }
 
 func TestTermsHandlerPUT(t *testing.T) {
-	registerTermCleanup(t, testUserId)
-
 	// No days off campus
 
 	body := map[string]interface{}{
@@ -96,8 +91,6 @@ func TestTermsHandlerPUT(t *testing.T) {
 }
 
 func TestTermsHandlerPUTValidation(t *testing.T) {
-	registerTermCleanup(t, testUserId)
-
 	subTests := []struct {
 		name         string
 		body         interface{}
@@ -141,17 +134,4 @@ func sendTermRequestAuthed(method string, body io.Reader) *httptest.ResponseReco
 
 func sendTermRequest(method string, body io.Reader, auth *http.Cookie) *httptest.ResponseRecorder {
 	return sendRequest(method, "/api/terms", body, auth, TermsHandler)
-}
-
-func registerTermCleanup(t testing.TB, userId int64) {
-	queries, err := database.Queries(context.Background())
-	if err != nil {
-		t.Fatalf("Failed to get database queries: %v", err)
-	}
-
-	t.Cleanup(func() {
-		if err := queries.DeleteActiveTermByUser(context.Background(), userId); err != nil {
-			t.Fatalf("Failed to clean up term: %v", err)
-		}
-	})
 }
