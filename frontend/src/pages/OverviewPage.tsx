@@ -89,7 +89,7 @@ export default function OverviewPage() {
     return <SignInScreen onSuccessfulLogin={handleSuccessfulLogin} />;
   }
 
-  if (authStatus === 'loading') {
+  if (authStatus === 'loading' || term === null) {
     return <LoadingView />;
   }
 

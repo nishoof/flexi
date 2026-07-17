@@ -11,25 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createActiveTerm = `-- name: CreateActiveTerm :one
-INSERT INTO app.terms (user_id, name, end_date, is_active)
-VALUES ($1, $2, $3, true)
-RETURNING id
-`
-
-type CreateActiveTermParams struct {
-	UserID  int64
-	Name    string
-	EndDate pgtype.Date
-}
-
-func (q *Queries) CreateActiveTerm(ctx context.Context, arg CreateActiveTermParams) (int64, error) {
-	row := q.db.QueryRow(ctx, createActiveTerm, arg.UserID, arg.Name, arg.EndDate)
-	var id int64
-	err := row.Scan(&id)
-	return id, err
-}
-
 const deleteActiveTermByUser = `-- name: DeleteActiveTermByUser :exec
 DELETE FROM app.terms
 WHERE user_id = $1 AND is_active = true
@@ -50,14 +31,21 @@ func (q *Queries) DeleteDaysOffByTerm(ctx context.Context, termID int64) error {
 	return err
 }
 
-const getActiveTerm = `-- name: GetActiveTerm :one
-SELECT id, user_id, name, end_date, is_active, created_at
-FROM app.terms
-WHERE user_id = $1 AND is_active = true
+const getOrCreateActiveTerm = `-- name: GetOrCreateActiveTerm :one
+INSERT INTO app.terms (user_id, name, end_date, is_active)
+VALUES ($1, $2, $3, true)
+ON CONFLICT (user_id) WHERE is_active = true DO UPDATE SET user_id = EXCLUDED.user_id
+RETURNING id, user_id, name, end_date, is_active, created_at
 `
 
-func (q *Queries) GetActiveTerm(ctx context.Context, userID int64) (Term, error) {
-	row := q.db.QueryRow(ctx, getActiveTerm, userID)
+type GetOrCreateActiveTermParams struct {
+	UserID  int64
+	Name    string
+	EndDate pgtype.Date
+}
+
+func (q *Queries) GetOrCreateActiveTerm(ctx context.Context, arg GetOrCreateActiveTermParams) (Term, error) {
+	row := q.db.QueryRow(ctx, getOrCreateActiveTerm, arg.UserID, arg.Name, arg.EndDate)
 	var i Term
 	err := row.Scan(
 		&i.ID,

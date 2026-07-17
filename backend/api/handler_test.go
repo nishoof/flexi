@@ -3,25 +3,19 @@ package handler
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
-	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/joho/godotenv"
 	"github.com/nishoof/flexi/backend/database"
-	"github.com/nishoof/flexi/backend/repository"
 )
 
 var testJWTTokenCookie *http.Cookie
 var testUserId int64
-var testTermId int64
 
 func TestMain(m *testing.M) {
 	err := godotenv.Load("../.env")
@@ -31,7 +25,6 @@ func TestMain(m *testing.M) {
 	}
 
 	setupTestUser()
-	setupTestTerm()
 
 	token, err := generateJWT(testUserId)
 	if err != nil {
@@ -64,49 +57,14 @@ func setupTestUser() {
 		os.Exit(1)
 	}
 	testUserId = userId
-	fmt.Println("Test user created with ID:", testUserId)
-}
 
-func setupTestTerm() {
-	queries, err := database.Queries(context.Background())
-	if err != nil {
-		fmt.Printf("Failed to get database queries: %v\n", err)
-		os.Exit(1)
-	}
-
-	ctx := context.Background()
-
-	term, err := queries.GetActiveTerm(ctx, testUserId)
-	if err == nil {
-		testTermId = term.ID
-		fmt.Println("Test term already exists with ID:", testTermId)
-		return
-	}
-	if !errors.Is(err, pgx.ErrNoRows) {
-		fmt.Printf("Failed to get test term: %v\n", err)
-		os.Exit(1)
-	}
-
-	endDate, err := time.Parse("2006-01-02", "2026-05-23")
-	if err != nil {
-		fmt.Printf("Failed to parse test term end date: %v\n", err)
-		os.Exit(1)
-	}
-
-	termID, err := queries.CreateActiveTerm(ctx, repository.CreateActiveTermParams{
-		UserID: testUserId,
-		Name:   "Spring 2026",
-		EndDate: pgtype.Date{
-			Time:  endDate,
-			Valid: true,
-		},
-	})
+	_, err = getOrCreateTerm(context.Background(), testUserId)
 	if err != nil {
 		fmt.Printf("Failed to create test term: %v\n", err)
 		os.Exit(1)
 	}
-	testTermId = termID
-	fmt.Println("Test term created with ID:", testTermId)
+
+	fmt.Println("Test user and term created")
 }
 
 func cleanupTestUser() error {

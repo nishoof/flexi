@@ -2,9 +2,6 @@ import React, { useEffect, useRef } from 'react';
 import { isAuthError, updateTerm, type Term } from '../lib/api';
 import { currentDateYYYYmmDD, formatDate } from '../lib/format';
 
-const defaultTermName = 'Spring 2026';
-const defaultEndDate = '2026-05-23';
-
 interface EditTermModalProps {
   /** Boolean indicating if the modal is open */
   isOpen: boolean;
@@ -13,7 +10,7 @@ interface EditTermModalProps {
   /** Function to be called after the term is updated */
   onTermUpdated: () => void;
   /** Initial term data to populate the modal */
-  initialTerm: Term | null;
+  initialTerm: Term;
   /** Called when the session is no longer valid */
   onUnauthorized: () => void;
 }
@@ -27,8 +24,8 @@ export default function EditTermModal({
   onUnauthorized,
 }: Readonly<EditTermModalProps>) {
   const ref = useRef<HTMLDialogElement>(null);
-  const [localDaysOff, setLocalDaysOff] = React.useState<string[]>(initialTerm?.daysOff ?? []);
-  const [localEndDate, setLocalEndDate] = React.useState(initialTerm?.endDate || defaultEndDate);
+  const [localDaysOff, setLocalDaysOff] = React.useState<string[]>(initialTerm.daysOff);
+  const [localEndDate, setLocalEndDate] = React.useState(initialTerm.endDate);
 
   useEffect(() => {
     if (isOpen) {
@@ -44,7 +41,7 @@ export default function EditTermModal({
 
     try {
       await updateTerm({
-        name: initialTerm?.name || defaultTermName,
+        name: initialTerm.name,
         endDate: localEndDate,
         daysOff: localDaysOff,
       });
@@ -128,7 +125,7 @@ export default function EditTermModal({
             name="endDate"
             value={localEndDate}
             onChange={(e) => setLocalEndDate(e.target.value)}
-            className="w-full px-3 py-2 bg-(--background-lightish) border border-(--border) rounded-lg focus:outline-none"
+            className="w-full px-3 py-2 bg-(--background) border border-(--border) rounded-lg focus:outline-none"
             required
           />
         </div>

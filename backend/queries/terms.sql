@@ -1,12 +1,8 @@
--- name: GetActiveTerm :one
-SELECT id, user_id, name, end_date, is_active, created_at
-FROM app.terms
-WHERE user_id = $1 AND is_active = true;
-
--- name: CreateActiveTerm :one
+-- name: GetOrCreateActiveTerm :one
 INSERT INTO app.terms (user_id, name, end_date, is_active)
 VALUES ($1, $2, $3, true)
-RETURNING id;
+ON CONFLICT (user_id) WHERE is_active = true DO UPDATE SET user_id = EXCLUDED.user_id
+RETURNING id, user_id, name, end_date, is_active, created_at;
 
 -- name: UpdateActiveTerm :exec
 UPDATE app.terms

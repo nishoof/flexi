@@ -6,8 +6,8 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/nishoof/flexi/backend/database"
 	"github.com/nishoof/flexi/backend/repository"
@@ -42,7 +42,7 @@ func TermsHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
-		response, err = getTerm(ctx, userId)
+		response, err = getOrCreateTerm(ctx, userId)
 	case http.MethodPut:
 		err = updateTerm(ctx, r.Body, userId)
 	default:
@@ -63,19 +63,23 @@ func TermsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(response)
 }
 
-func getTerm(ctx context.Context, userId int64) ([]byte, error) {
+func getOrCreateTerm(ctx context.Context, userId int64) ([]byte, error) {
 	queries, err := database.Queries(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	term, err := queries.GetActiveTerm(ctx, userId) // TODO: replace with get or create?
-	if errors.Is(err, pgx.ErrNoRows) {
-		return json.Marshal(termResponse{
-			Name:    "",
-			DaysOff: []*util.Date{},
-		})
-	}
+	defaultTermName := "Spring 2026"
+	defaultEndDate, _ := time.Parse("2006-01-02", "2026-05-23")
+
+	term, err := queries.GetOrCreateActiveTerm(ctx, repository.GetOrCreateActiveTermParams{
+		UserID: userId,
+		Name:   defaultTermName,
+		EndDate: pgtype.Date{
+			Time:  defaultEndDate,
+			Valid: true,
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -127,13 +131,20 @@ func updateTerm(ctx context.Context, body io.ReadCloser, userId int64) error {
 	}
 	defer tx.Rollback(ctx)
 
-	termID, err := getOrCreateActiveTermID(ctx, qtx, userId, update.Name, update.EndDate)
+	term, err := qtx.GetOrCreateActiveTerm(ctx, repository.GetOrCreateActiveTermParams{
+		UserID: userId,
+		Name:   update.Name,
+		EndDate: pgtype.Date{
+			Time:  update.EndDate.Time,
+			Valid: true,
+		},
+	})
 	if err != nil {
 		return err
 	}
 
 	if err := qtx.UpdateActiveTerm(ctx, repository.UpdateActiveTermParams{
-		ID:   termID,
+		ID:   term.ID,
 		Name: update.Name,
 		EndDate: pgtype.Date{
 			Time:  update.EndDate.Time,
@@ -143,13 +154,13 @@ func updateTerm(ctx context.Context, body io.ReadCloser, userId int64) error {
 		return err
 	}
 
-	if err := qtx.DeleteDaysOffByTerm(ctx, termID); err != nil {
+	if err := qtx.DeleteDaysOffByTerm(ctx, term.ID); err != nil {
 		return err
 	}
 
 	for _, dayOff := range update.DaysOff {
 		if err := qtx.InsertDayOff(ctx, repository.InsertDayOffParams{
-			TermID: termID,
+			TermID: term.ID,
 			Date: pgtype.Date{
 				Time:  dayOff.Time,
 				Valid: true,
@@ -160,25 +171,6 @@ func updateTerm(ctx context.Context, body io.ReadCloser, userId int64) error {
 	}
 
 	return tx.Commit(ctx)
-}
-
-func getOrCreateActiveTermID(ctx context.Context, queries *repository.Queries, userId int64, name string, endDate *util.Date) (int64, error) {
-	term, err := queries.GetActiveTerm(ctx, userId)
-	if err == nil {
-		return term.ID, nil
-	}
-	if !errors.Is(err, pgx.ErrNoRows) {
-		return 0, err
-	}
-
-	return queries.CreateActiveTerm(ctx, repository.CreateActiveTermParams{
-		UserID: userId,
-		Name:   name,
-		EndDate: pgtype.Date{
-			Time:  endDate.Time,
-			Valid: true,
-		},
-	})
 }
 
 func isValidTermUpdate(update termUpdate) bool {
