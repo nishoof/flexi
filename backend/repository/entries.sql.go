@@ -38,7 +38,6 @@ DELETE FROM app.entries e
 USING app.terms t
 WHERE e.term_id = t.id
   AND t.user_id = $1
-  AND t.is_active = true
 `
 
 func (q *Queries) DeleteEntriesByUser(ctx context.Context, userID int64) error {

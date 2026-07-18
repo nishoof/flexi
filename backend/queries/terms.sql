@@ -4,6 +4,33 @@ VALUES ($1, $2, $3, true)
 ON CONFLICT (user_id) WHERE is_active = true DO UPDATE SET user_id = EXCLUDED.user_id
 RETURNING id, user_id, name, end_date, is_active, created_at;
 
+-- name: ListTerms :many
+SELECT id, user_id, name, end_date, is_active, created_at
+FROM app.terms
+WHERE user_id = $1
+ORDER BY end_date;
+
+-- name: GetTermByID :one
+SELECT id, user_id, name, end_date, is_active, created_at
+FROM app.terms
+WHERE id = $1 AND user_id = $2;
+
+-- name: CreateTerm :one
+INSERT INTO app.terms (user_id, name, end_date, is_active)
+VALUES ($1, $2, $3, false)
+RETURNING id, user_id, name, end_date, is_active, created_at;
+
+-- name: DeactivateTermsByUser :exec
+UPDATE app.terms
+SET is_active = false
+WHERE user_id = $1 AND is_active = true;
+
+-- name: ActivateTerm :one
+UPDATE app.terms
+SET is_active = true
+WHERE id = $1 AND user_id = $2
+RETURNING id, user_id, name, end_date, is_active, created_at;
+
 -- name: UpdateActiveTerm :exec
 UPDATE app.terms
 SET name = $2, end_date = $3
@@ -23,6 +50,6 @@ WHERE term_id = $1;
 INSERT INTO app.term_days_off (term_id, date)
 VALUES ($1, $2);
 
--- name: DeleteActiveTermByUser :exec
+-- name: DeleteTermsByUser :exec
 DELETE FROM app.terms
-WHERE user_id = $1 AND is_active = true;
+WHERE user_id = $1;

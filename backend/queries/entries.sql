@@ -16,5 +16,4 @@ ON CONFLICT (term_id, date) DO NOTHING;
 DELETE FROM app.entries e
 USING app.terms t
 WHERE e.term_id = t.id
-  AND t.user_id = $1
-  AND t.is_active = true;
+  AND t.user_id = $1;

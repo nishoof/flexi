@@ -77,8 +77,8 @@ func cleanupTestUser() error {
 	if err := queries.DeleteEntriesByUser(ctx, testUserId); err != nil {
 		return fmt.Errorf("failed to delete test entries: %w", err)
 	}
-	if err := queries.DeleteActiveTermByUser(ctx, testUserId); err != nil {
-		return fmt.Errorf("failed to delete test term: %w", err)
+	if err := queries.DeleteTermsByUser(ctx, testUserId); err != nil {
+		return fmt.Errorf("failed to delete test terms: %w", err)
 	}
 	if err := queries.DeleteUser(ctx, testUserId); err != nil {
 		return fmt.Errorf("failed to delete test user: %w", err)

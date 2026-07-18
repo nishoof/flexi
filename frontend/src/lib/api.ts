@@ -15,34 +15,35 @@ export function isAuthError(error: unknown): error is AuthError {
 
 // Term
 
-const defaultEndDate = '2026-05-23';
-
 export type Term = {
-    id?: number;
+    id: number;
     name: string;
     endDate: string;
     isActive: boolean;
     daysOff: string[];
 };
 
-type ApiTerm = {
-    id?: number;
+export type ApiTerm = {
+    id: number;
     name: string;
-    end_date: string | null;
+    end_date: string;
     is_active: boolean;
     days_off: string[];
-};
+}
 
 export async function getTerm(): Promise<Term> {
     const response = await fetchBackend('terms', 'GET');
-    const data: ApiTerm = await response.json();
-
+    const data: ApiTerm[] = await response.json();
+    const activeTerm = data.find((term) => term.is_active);
+    if (!activeTerm) {
+        throw new Error('No active term');
+    }
     return {
-        id: data.id,
-        name: data.name,
-        endDate: data.end_date ?? defaultEndDate,
-        isActive: data.is_active,
-        daysOff: data.days_off,
+        id: activeTerm.id,
+        name: activeTerm.name,
+        endDate: activeTerm.end_date,
+        isActive: activeTerm.is_active,
+        daysOff: activeTerm.days_off,
     };
 }
 

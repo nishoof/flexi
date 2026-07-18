@@ -11,13 +11,66 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const deleteActiveTermByUser = `-- name: DeleteActiveTermByUser :exec
-DELETE FROM app.terms
+const activateTerm = `-- name: ActivateTerm :one
+UPDATE app.terms
+SET is_active = true
+WHERE id = $1 AND user_id = $2
+RETURNING id, user_id, name, end_date, is_active, created_at
+`
+
+type ActivateTermParams struct {
+	ID     int64
+	UserID int64
+}
+
+func (q *Queries) ActivateTerm(ctx context.Context, arg ActivateTermParams) (Term, error) {
+	row := q.db.QueryRow(ctx, activateTerm, arg.ID, arg.UserID)
+	var i Term
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.EndDate,
+		&i.IsActive,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const createTerm = `-- name: CreateTerm :one
+INSERT INTO app.terms (user_id, name, end_date, is_active)
+VALUES ($1, $2, $3, false)
+RETURNING id, user_id, name, end_date, is_active, created_at
+`
+
+type CreateTermParams struct {
+	UserID  int64
+	Name    string
+	EndDate pgtype.Date
+}
+
+func (q *Queries) CreateTerm(ctx context.Context, arg CreateTermParams) (Term, error) {
+	row := q.db.QueryRow(ctx, createTerm, arg.UserID, arg.Name, arg.EndDate)
+	var i Term
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.EndDate,
+		&i.IsActive,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const deactivateTermsByUser = `-- name: DeactivateTermsByUser :exec
+UPDATE app.terms
+SET is_active = false
 WHERE user_id = $1 AND is_active = true
 `
 
-func (q *Queries) DeleteActiveTermByUser(ctx context.Context, userID int64) error {
-	_, err := q.db.Exec(ctx, deleteActiveTermByUser, userID)
+func (q *Queries) DeactivateTermsByUser(ctx context.Context, userID int64) error {
+	_, err := q.db.Exec(ctx, deactivateTermsByUser, userID)
 	return err
 }
 
@@ -28,6 +81,16 @@ WHERE term_id = $1
 
 func (q *Queries) DeleteDaysOffByTerm(ctx context.Context, termID int64) error {
 	_, err := q.db.Exec(ctx, deleteDaysOffByTerm, termID)
+	return err
+}
+
+const deleteTermsByUser = `-- name: DeleteTermsByUser :exec
+DELETE FROM app.terms
+WHERE user_id = $1
+`
+
+func (q *Queries) DeleteTermsByUser(ctx context.Context, userID int64) error {
+	_, err := q.db.Exec(ctx, deleteTermsByUser, userID)
 	return err
 }
 
@@ -46,6 +109,31 @@ type GetOrCreateActiveTermParams struct {
 
 func (q *Queries) GetOrCreateActiveTerm(ctx context.Context, arg GetOrCreateActiveTermParams) (Term, error) {
 	row := q.db.QueryRow(ctx, getOrCreateActiveTerm, arg.UserID, arg.Name, arg.EndDate)
+	var i Term
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.EndDate,
+		&i.IsActive,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getTermByID = `-- name: GetTermByID :one
+SELECT id, user_id, name, end_date, is_active, created_at
+FROM app.terms
+WHERE id = $1 AND user_id = $2
+`
+
+type GetTermByIDParams struct {
+	ID     int64
+	UserID int64
+}
+
+func (q *Queries) GetTermByID(ctx context.Context, arg GetTermByIDParams) (Term, error) {
+	row := q.db.QueryRow(ctx, getTermByID, arg.ID, arg.UserID)
 	var i Term
 	err := row.Scan(
 		&i.ID,
@@ -93,6 +181,40 @@ func (q *Queries) ListDaysOff(ctx context.Context, termID int64) ([]pgtype.Date,
 			return nil, err
 		}
 		items = append(items, date)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTerms = `-- name: ListTerms :many
+SELECT id, user_id, name, end_date, is_active, created_at
+FROM app.terms
+WHERE user_id = $1
+ORDER BY end_date
+`
+
+func (q *Queries) ListTerms(ctx context.Context, userID int64) ([]Term, error) {
+	rows, err := q.db.Query(ctx, listTerms, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Term
+	for rows.Next() {
+		var i Term
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Name,
+			&i.EndDate,
+			&i.IsActive,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

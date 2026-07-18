@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/terms/(.*)",
+      "destination": "/api/terms.go"
+    }
+  ]
+}
