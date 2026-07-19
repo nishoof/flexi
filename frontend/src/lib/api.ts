@@ -29,22 +29,33 @@ export type ApiTerm = {
     end_date: string;
     is_active: boolean;
     days_off: string[];
+};
+
+function mapApiTerm(data: ApiTerm): Term {
+    return {
+        id: data.id,
+        name: data.name,
+        endDate: data.end_date,
+        isActive: data.is_active,
+        daysOff: data.days_off,
+    };
 }
 
-export async function getTerm(): Promise<Term> {
+/** All terms for the current user. */
+export async function getTerms(): Promise<Term[]> {
     const response = await fetchBackend('terms', 'GET');
     const data: ApiTerm[] = await response.json();
-    const activeTerm = data.find((term) => term.is_active);
+    return data.map(mapApiTerm);
+}
+
+/** Active term for the dashboard. */
+export async function getTerm(): Promise<Term> {
+    const terms = await getTerms();
+    const activeTerm = terms.find((term) => term.isActive);
     if (!activeTerm) {
         throw new Error('No active term');
     }
-    return {
-        id: activeTerm.id,
-        name: activeTerm.name,
-        endDate: activeTerm.end_date,
-        isActive: activeTerm.is_active,
-        daysOff: activeTerm.days_off,
-    };
+    return activeTerm;
 }
 
 type TermUpdate = {
@@ -59,6 +70,28 @@ export async function updateTerm(term: TermUpdate): Promise<void> {
         end_date: term.endDate,
         days_off: term.daysOff,
     });
+}
+
+type TermCreate = {
+    name: string;
+    endDate: string;
+    daysOff?: string[];
+};
+
+/** Create a new (inactive) term. */
+export async function createTerm(term: TermCreate): Promise<Term> {
+    const response = await fetchBackend('terms', 'POST', {
+        name: term.name,
+        end_date: term.endDate,
+        days_off: term.daysOff ?? [],
+    });
+    const data: ApiTerm = await response.json();
+    return mapApiTerm(data);
+}
+
+/** Set a term as the active term. */
+export async function activateTerm(termId: number): Promise<void> {
+    await fetchBackend(`terms/${termId}/activate`, 'POST');
 }
 
 // Entry

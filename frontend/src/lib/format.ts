@@ -5,7 +5,8 @@ export function currentDateYYYYmmDD() {
 
 /** Reformats a YYYY-MM-DD date string to M/D/YYYY */
 export function formatDate(dateStringYYYYmmDD: string) {
-    return new Date(dateStringYYYYmmDD).toLocaleDateString('en-US'); // us format is M/D/YYYY
+    const [year, month, day] = dateStringYYYYmmDD.split('-').map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString('en-US');
 }
 
 /** Formats a number as a money string, e.g. 3 becomes "$3.00" and -12.5 becomes "-$12.50" */
