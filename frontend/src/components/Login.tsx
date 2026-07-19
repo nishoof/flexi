@@ -44,7 +44,7 @@ export default function Login({ onSuccessfulLogin }: Readonly<LoginProps>) {
       )}
 
       {error && (
-        <p role="alert" className="text-sm text-red-400">
+        <p role="alert" className="text-sm text-(--red)">
           {error}
         </p>
       )}

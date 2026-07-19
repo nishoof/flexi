@@ -183,7 +183,7 @@ export default function OverviewPage() {
       <button
         type="button"
         onClick={() => setIsEditTermModalOpen(true)}
-        className="w-full px-4 py-2 bg-(--accent) rounded-lg hover:bg-(--accent-dark) font-medium"
+        className="px-4 py-2 bg-(--accent) rounded-lg hover:bg-(--accent-dark) font-medium"
       >
         Edit Term
       </button>
@@ -203,7 +203,7 @@ export default function OverviewPage() {
         <button
           type="button"
           onClick={() => setIsAddEntryModalOpen(true)}
-          className="w-full px-4 py-2 bg-(--accent) rounded-lg hover:bg-(--accent-dark) font-medium"
+          className="px-4 py-2 bg-(--accent) rounded-lg hover:bg-(--accent-dark) font-medium"
         >
           Add Entry
         </button>

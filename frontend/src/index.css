@@ -2,12 +2,13 @@
 
 :root {
   --foreground: #ffffffde;
-  --background: #222222;
-  --background-lightish: #2a2929;
   --background-light: #2e2e2e;
+  --background-lightish: #2a2929;
+  --background: #222222;
   --border: #505050;
   --accent: #275d3a;
   --accent-dark: #214a2c;
+  --red: #ef4444;
 
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;

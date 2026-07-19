@@ -78,7 +78,7 @@ export default function TermPicker({
               >
                 <span>
                   <span className="block font-medium">{term.name}</span>
-                  <span className="block text-sm opacity-60">
+                  <span className="block text-sm text-(--foreground)/70">
                     Ends {formatDate(term.endDate)}
                   </span>
                 </span>
@@ -92,7 +92,7 @@ export default function TermPicker({
             className="w-full border-t border-(--border) px-4 py-3 text-left hover:bg-(--background-lightish)"
             onClick={() => closeAnd(onNewTerm)}
           >
-            + New term
+            + New Term
           </button>
         </div>
       )}

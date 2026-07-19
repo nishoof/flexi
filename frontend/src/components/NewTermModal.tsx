@@ -63,7 +63,7 @@ export default function NewTermModal({
       className="w-[calc(100%-2rem)] max-w-md rounded-xl border border-(--border) bg-(--background) mt-[15vh] mx-auto backdrop:bg-black/50"
     >
       <header className="flex justify-between p-4 bg-(--background) border-b border-(--border)">
-        <h2 className="font-bold">New term</h2>
+        <h2 className="font-bold">New Term</h2>
         <button onClick={close} aria-label="Close modal" type="button">
           X
         </button>
@@ -85,7 +85,7 @@ export default function NewTermModal({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Fall 2026"
-            className="w-full px-3 py-2 bg-(--background) border border-(--border) rounded-lg focus:outline-none"
+            className="px-3 py-2 bg-(--background) border border-(--border) rounded-lg focus:outline-none"
             required
           />
         </div>
@@ -93,7 +93,7 @@ export default function NewTermModal({
         {/* End date */}
         <div className="flex flex-col gap-2">
           <label htmlFor="newTermEndDate" className="font-medium">
-            End date
+            End Date
           </label>
           <input
             type="date"
@@ -101,7 +101,7 @@ export default function NewTermModal({
             name="newTermEndDate"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
-            className="w-full px-3 py-2 bg-(--background) border border-(--border) rounded-lg focus:outline-none"
+            className="px-3 py-2 bg-(--background) border border-(--border) rounded-lg focus:outline-none"
             required
           />
         </div>
@@ -111,7 +111,7 @@ export default function NewTermModal({
           type="submit"
           className="w-full px-4 py-2 bg-(--accent) rounded-lg hover:bg-(--accent-dark) font-medium"
         >
-          Create & activate
+          Create & Activate
         </button>
       </form>
     </dialog>

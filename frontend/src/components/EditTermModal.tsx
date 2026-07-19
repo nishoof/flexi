@@ -63,7 +63,7 @@ export default function EditTermModal({
           <span>{formatDate(dayOff)}</span>
           <button
             type="button"
-            className="text-red-500"
+            className="text-(--red)"
             onClick={() => {
               setLocalDaysOff(localDaysOff.filter((_, i) => i !== index));
             }}
@@ -99,9 +99,7 @@ export default function EditTermModal({
       className="w-[calc(100%-2rem)] max-w-md rounded-xl border border-(--border) bg-(--background) mt-[15vh] mx-auto backdrop:bg-black/50"
     >
       <header className="flex justify-between p-4 bg-(--background) border-b border-(--border)">
-        <div>
-          <h2 className="font-bold">Term settings</h2>
-        </div>
+        <h2 className="font-bold">Term Settings</h2>
         <button onClick={close} aria-label="Close modal" type="button">
           X
         </button>
@@ -117,7 +115,7 @@ export default function EditTermModal({
             htmlFor="endDate"
             className="font-medium"
           >
-            End date
+            End Date
           </label>
           <input
             type="date"
@@ -125,7 +123,7 @@ export default function EditTermModal({
             name="endDate"
             value={localEndDate}
             onChange={(e) => setLocalEndDate(e.target.value)}
-            className="w-full px-3 py-2 bg-(--background) border border-(--border) rounded-lg focus:outline-none"
+            className="px-3 py-2 bg-(--background) border border-(--border) rounded-lg focus:outline-none"
             required
           />
         </div>
@@ -136,7 +134,7 @@ export default function EditTermModal({
             htmlFor="daysOff"
             className="font-medium"
           >
-            Days off campus
+            Days Off Campus
           </label>
           {daysOffList}
         </div>
