@@ -21,17 +21,21 @@ var errInvalidTerm = errors.New("Invalid term data")
 var errTermNotFound = errors.New("Term not found")
 
 type termResponse struct {
-	ID       int64        `json:"id,omitempty"`
-	Name     string       `json:"name"`
-	EndDate  *util.Date   `json:"end_date"`
-	IsActive bool         `json:"is_active"`
-	DaysOff  []*util.Date `json:"days_off"`
+	ID             int64        `json:"id,omitempty"`
+	Name           string       `json:"name"`
+	StartDate      *util.Date   `json:"start_date"`
+	EndDate        *util.Date   `json:"end_date"`
+	StartingAmount float64      `json:"starting_amount"`
+	IsActive       bool         `json:"is_active"`
+	DaysOff        []*util.Date `json:"days_off"`
 }
 
 type termUpdate struct {
-	Name    string       `json:"name"`
-	EndDate *util.Date   `json:"end_date"`
-	DaysOff []*util.Date `json:"days_off"`
+	Name           string       `json:"name"`
+	StartDate      *util.Date   `json:"start_date"`
+	EndDate        *util.Date   `json:"end_date"`
+	StartingAmount *float64     `json:"starting_amount"`
+	DaysOff        []*util.Date `json:"days_off"`
 }
 
 type termsRoute int
@@ -43,8 +47,10 @@ const (
 )
 
 var (
-	defaultTermName   = "Spring 2026"
-	defaultEndDate, _ = time.Parse("2006-01-02", "2026-05-23")
+	defaultTermName       = "Spring 2026"
+	defaultStartDate, _   = time.Parse("2006-01-02", "2026-01-26")
+	defaultEndDate, _     = time.Parse("2006-01-02", "2026-05-23")
+	defaultStartingAmount = 3010.0
 )
 
 func TermsHandler(w http.ResponseWriter, r *http.Request) {
@@ -179,10 +185,15 @@ func listTerms(ctx context.Context, userId int64) ([]byte, error) {
 		_, err := queries.GetOrCreateActiveTerm(ctx, repository.GetOrCreateActiveTermParams{
 			UserID: userId,
 			Name:   defaultTermName,
+			StartDate: pgtype.Date{
+				Time:  defaultStartDate,
+				Valid: true,
+			},
 			EndDate: pgtype.Date{
 				Time:  defaultEndDate,
 				Valid: true,
 			},
+			StartingAmount: defaultStartingAmount,
 		})
 		if err != nil {
 			return nil, err
@@ -216,10 +227,15 @@ func createTerm(ctx context.Context, body io.ReadCloser, userId int64) ([]byte, 
 	term, err := qtx.CreateTerm(ctx, repository.CreateTermParams{
 		UserID: userId,
 		Name:   input.Name,
+		StartDate: pgtype.Date{
+			Time:  input.StartDate.Time,
+			Valid: true,
+		},
 		EndDate: pgtype.Date{
 			Time:  input.EndDate.Time,
 			Valid: true,
 		},
+		StartingAmount: *input.StartingAmount,
 	})
 	if err != nil {
 		return nil, err
@@ -303,10 +319,15 @@ func getOrCreateTerm(ctx context.Context, userId int64) ([]byte, error) {
 	term, err := queries.GetOrCreateActiveTerm(ctx, repository.GetOrCreateActiveTermParams{
 		UserID: userId,
 		Name:   defaultTermName,
+		StartDate: pgtype.Date{
+			Time:  defaultStartDate,
+			Valid: true,
+		},
 		EndDate: pgtype.Date{
 			Time:  defaultEndDate,
 			Valid: true,
 		},
+		StartingAmount: defaultStartingAmount,
 	})
 	if err != nil {
 		return nil, err
@@ -341,6 +362,11 @@ func termToResponse(ctx context.Context, queries *repository.Queries, term repos
 		return termResponse{}, err
 	}
 
+	startDate, err := util.NewDate(term.StartDate.Time.Format("2006-01-02"))
+	if err != nil {
+		return termResponse{}, err
+	}
+
 	endDate, err := util.NewDate(term.EndDate.Time.Format("2006-01-02"))
 	if err != nil {
 		return termResponse{}, err
@@ -356,11 +382,13 @@ func termToResponse(ctx context.Context, queries *repository.Queries, term repos
 	}
 
 	return termResponse{
-		ID:       term.ID,
-		Name:     term.Name,
-		EndDate:  endDate,
-		IsActive: term.IsActive,
-		DaysOff:  daysOffDates,
+		ID:             term.ID,
+		Name:           term.Name,
+		StartDate:      startDate,
+		EndDate:        endDate,
+		StartingAmount: term.StartingAmount,
+		IsActive:       term.IsActive,
+		DaysOff:        daysOffDates,
 	}, nil
 }
 
@@ -385,10 +413,15 @@ func updateTerm(ctx context.Context, body io.ReadCloser, userId int64) error {
 	term, err := qtx.GetOrCreateActiveTerm(ctx, repository.GetOrCreateActiveTermParams{
 		UserID: userId,
 		Name:   update.Name,
+		StartDate: pgtype.Date{
+			Time:  update.StartDate.Time,
+			Valid: true,
+		},
 		EndDate: pgtype.Date{
 			Time:  update.EndDate.Time,
 			Valid: true,
 		},
+		StartingAmount: *update.StartingAmount,
 	})
 	if err != nil {
 		return err
@@ -397,10 +430,15 @@ func updateTerm(ctx context.Context, body io.ReadCloser, userId int64) error {
 	if err := qtx.UpdateActiveTerm(ctx, repository.UpdateActiveTermParams{
 		ID:   term.ID,
 		Name: update.Name,
+		StartDate: pgtype.Date{
+			Time:  update.StartDate.Time,
+			Valid: true,
+		},
 		EndDate: pgtype.Date{
 			Time:  update.EndDate.Time,
 			Valid: true,
 		},
+		StartingAmount: *update.StartingAmount,
 	}); err != nil {
 		return err
 	}
@@ -425,11 +463,20 @@ func updateTerm(ctx context.Context, body io.ReadCloser, userId int64) error {
 }
 
 func isValidTermUpdate(update termUpdate) bool {
-	if update.EndDate == nil {
+	if update.StartDate == nil || update.EndDate == nil {
+		return false
+	}
+	if update.StartingAmount == nil || *update.StartingAmount < 0 {
+		return false
+	}
+	if update.StartDate.Time.After(update.EndDate.Time) {
 		return false
 	}
 	for _, dayOff := range update.DaysOff {
 		if dayOff == nil {
+			return false
+		}
+		if dayOff.Time.Before(update.StartDate.Time) || dayOff.Time.After(update.EndDate.Time) {
 			return false
 		}
 	}

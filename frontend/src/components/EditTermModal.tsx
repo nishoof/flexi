@@ -25,7 +25,9 @@ export default function EditTermModal({
 }: Readonly<EditTermModalProps>) {
   const ref = useRef<HTMLDialogElement>(null);
   const [localDaysOff, setLocalDaysOff] = React.useState<string[]>(initialTerm.daysOff);
+  const [localStartDate, setLocalStartDate] = React.useState(initialTerm.startDate);
   const [localEndDate, setLocalEndDate] = React.useState(initialTerm.endDate);
+  const [localStartingAmount, setLocalStartingAmount] = React.useState(String(initialTerm.startingAmount));
 
   useEffect(() => {
     if (isOpen) {
@@ -42,7 +44,9 @@ export default function EditTermModal({
     try {
       await updateTerm({
         name: initialTerm.name,
+        startDate: localStartDate,
         endDate: localEndDate,
+        startingAmount: Number(localStartingAmount),
         daysOff: localDaysOff,
       });
       onTermUpdated();
@@ -77,6 +81,8 @@ export default function EditTermModal({
         id="newDayOff"
         name="newDayOff"
         defaultValue={currentDateYYYYmmDD()}
+        min={localStartDate}
+        max={localEndDate}
         className="w-full px-3 py-2 bg-(--background) focus:outline-none"
         onKeyDown={(e) => {
           if (e.key !== 'Enter') return;
@@ -84,6 +90,7 @@ export default function EditTermModal({
           const newDayOff = (e.target as HTMLInputElement).value.trim();
           if (!newDayOff) return;
           if (localDaysOff.includes(newDayOff)) return;
+          if (newDayOff < localStartDate || newDayOff > localEndDate) return;
           setLocalDaysOff([...localDaysOff, newDayOff]);
           (e.target as HTMLInputElement).value = '';
         }}
@@ -109,6 +116,26 @@ export default function EditTermModal({
         className="p-4 bg-(--background-light) space-y-4"
         onSubmit={saveTerm}
       >
+        {/* Start date */}
+        <div className="flex flex-col gap-2">
+          <label
+            htmlFor="startDate"
+            className="font-medium"
+          >
+            Start Date
+          </label>
+          <input
+            type="date"
+            id="startDate"
+            name="startDate"
+            value={localStartDate}
+            onChange={(e) => setLocalStartDate(e.target.value)}
+            max={localEndDate}
+            className="px-3 py-2 bg-(--background) border border-(--border) rounded-lg focus:outline-none"
+            required
+          />
+        </div>
+
         {/* End date */}
         <div className="flex flex-col gap-2">
           <label
@@ -123,7 +150,30 @@ export default function EditTermModal({
             name="endDate"
             value={localEndDate}
             onChange={(e) => setLocalEndDate(e.target.value)}
+            min={localStartDate}
             className="px-3 py-2 bg-(--background) border border-(--border) rounded-lg focus:outline-none"
+            required
+          />
+        </div>
+
+        {/* Starting amount */}
+        <div className="flex flex-col gap-2">
+          <label
+            htmlFor="startingAmount"
+            className="font-medium"
+          >
+            Starting Amount
+          </label>
+          <input
+            type="number"
+            id="startingAmount"
+            name="startingAmount"
+            value={localStartingAmount}
+            onChange={(e) => setLocalStartingAmount(e.target.value)}
+            step="0.01"
+            min="0"
+            className="px-3 py-2 bg-(--background) border border-(--border) rounded-lg focus:outline-none"
+            placeholder="0.00"
             required
           />
         </div>

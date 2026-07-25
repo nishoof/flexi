@@ -18,7 +18,9 @@ export function isAuthError(error: unknown): error is AuthError {
 export type Term = {
     id: number;
     name: string;
+    startDate: string;
     endDate: string;
+    startingAmount: number;
     isActive: boolean;
     daysOff: string[];
 };
@@ -26,7 +28,9 @@ export type Term = {
 export type ApiTerm = {
     id: number;
     name: string;
+    start_date: string;
     end_date: string;
+    starting_amount: number;
     is_active: boolean;
     days_off: string[];
 };
@@ -35,7 +39,9 @@ function mapApiTerm(data: ApiTerm): Term {
     return {
         id: data.id,
         name: data.name,
+        startDate: data.start_date,
         endDate: data.end_date,
+        startingAmount: data.starting_amount,
         isActive: data.is_active,
         daysOff: data.days_off,
     };
@@ -60,21 +66,27 @@ export async function getTerm(): Promise<Term> {
 
 type TermUpdate = {
     name: string;
+    startDate: string;
     endDate: string;
+    startingAmount: number;
     daysOff: string[];
 };
 
 export async function updateTerm(term: TermUpdate): Promise<void> {
     await fetchBackend('terms', 'PUT', {
         name: term.name,
+        start_date: term.startDate,
         end_date: term.endDate,
+        starting_amount: term.startingAmount,
         days_off: term.daysOff,
     });
 }
 
 type TermCreate = {
     name: string;
+    startDate: string;
     endDate: string;
+    startingAmount: number;
     daysOff?: string[];
 };
 
@@ -82,7 +94,9 @@ type TermCreate = {
 export async function createTerm(term: TermCreate): Promise<Term> {
     const response = await fetchBackend('terms', 'POST', {
         name: term.name,
+        start_date: term.startDate,
         end_date: term.endDate,
+        starting_amount: term.startingAmount,
         days_off: term.daysOff ?? [],
     });
     const data: ApiTerm = await response.json();

@@ -164,7 +164,7 @@ export default function OverviewPage() {
       </div>
 
       <EditTermModal
-        key={`${term.id}-${term.daysOff.join(',')}-${term.endDate}`} // Force remount when term settings change
+        key={`${term.id}-${term.daysOff.join(',')}-${term.startDate}-${term.endDate}-${term.startingAmount}`} // Force remount when term settings change
         isOpen={isEditTermModalOpen}
         close={() => setIsEditTermModalOpen(false)}
         onTermUpdated={refreshTerm}

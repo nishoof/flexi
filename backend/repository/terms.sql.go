@@ -15,7 +15,7 @@ const activateTerm = `-- name: ActivateTerm :one
 UPDATE app.terms
 SET is_active = true
 WHERE id = $1 AND user_id = $2
-RETURNING id, user_id, name, end_date, is_active, created_at
+RETURNING id, user_id, name, end_date, is_active, created_at, start_date, starting_amount
 `
 
 type ActivateTermParams struct {
@@ -33,24 +33,34 @@ func (q *Queries) ActivateTerm(ctx context.Context, arg ActivateTermParams) (Ter
 		&i.EndDate,
 		&i.IsActive,
 		&i.CreatedAt,
+		&i.StartDate,
+		&i.StartingAmount,
 	)
 	return i, err
 }
 
 const createTerm = `-- name: CreateTerm :one
-INSERT INTO app.terms (user_id, name, end_date, is_active)
-VALUES ($1, $2, $3, false)
-RETURNING id, user_id, name, end_date, is_active, created_at
+INSERT INTO app.terms (user_id, name, start_date, end_date, starting_amount, is_active)
+VALUES ($1, $2, $3, $4, $5, false)
+RETURNING id, user_id, name, end_date, is_active, created_at, start_date, starting_amount
 `
 
 type CreateTermParams struct {
-	UserID  int64
-	Name    string
-	EndDate pgtype.Date
+	UserID         int64
+	Name           string
+	StartDate      pgtype.Date
+	EndDate        pgtype.Date
+	StartingAmount float64
 }
 
 func (q *Queries) CreateTerm(ctx context.Context, arg CreateTermParams) (Term, error) {
-	row := q.db.QueryRow(ctx, createTerm, arg.UserID, arg.Name, arg.EndDate)
+	row := q.db.QueryRow(ctx, createTerm,
+		arg.UserID,
+		arg.Name,
+		arg.StartDate,
+		arg.EndDate,
+		arg.StartingAmount,
+	)
 	var i Term
 	err := row.Scan(
 		&i.ID,
@@ -59,6 +69,8 @@ func (q *Queries) CreateTerm(ctx context.Context, arg CreateTermParams) (Term, e
 		&i.EndDate,
 		&i.IsActive,
 		&i.CreatedAt,
+		&i.StartDate,
+		&i.StartingAmount,
 	)
 	return i, err
 }
@@ -95,20 +107,28 @@ func (q *Queries) DeleteTermsByUser(ctx context.Context, userID int64) error {
 }
 
 const getOrCreateActiveTerm = `-- name: GetOrCreateActiveTerm :one
-INSERT INTO app.terms (user_id, name, end_date, is_active)
-VALUES ($1, $2, $3, true)
+INSERT INTO app.terms (user_id, name, start_date, end_date, starting_amount, is_active)
+VALUES ($1, $2, $3, $4, $5, true)
 ON CONFLICT (user_id) WHERE is_active = true DO UPDATE SET user_id = EXCLUDED.user_id
-RETURNING id, user_id, name, end_date, is_active, created_at
+RETURNING id, user_id, name, end_date, is_active, created_at, start_date, starting_amount
 `
 
 type GetOrCreateActiveTermParams struct {
-	UserID  int64
-	Name    string
-	EndDate pgtype.Date
+	UserID         int64
+	Name           string
+	StartDate      pgtype.Date
+	EndDate        pgtype.Date
+	StartingAmount float64
 }
 
 func (q *Queries) GetOrCreateActiveTerm(ctx context.Context, arg GetOrCreateActiveTermParams) (Term, error) {
-	row := q.db.QueryRow(ctx, getOrCreateActiveTerm, arg.UserID, arg.Name, arg.EndDate)
+	row := q.db.QueryRow(ctx, getOrCreateActiveTerm,
+		arg.UserID,
+		arg.Name,
+		arg.StartDate,
+		arg.EndDate,
+		arg.StartingAmount,
+	)
 	var i Term
 	err := row.Scan(
 		&i.ID,
@@ -117,12 +137,14 @@ func (q *Queries) GetOrCreateActiveTerm(ctx context.Context, arg GetOrCreateActi
 		&i.EndDate,
 		&i.IsActive,
 		&i.CreatedAt,
+		&i.StartDate,
+		&i.StartingAmount,
 	)
 	return i, err
 }
 
 const getTermByID = `-- name: GetTermByID :one
-SELECT id, user_id, name, end_date, is_active, created_at
+SELECT id, user_id, name, end_date, is_active, created_at, start_date, starting_amount
 FROM app.terms
 WHERE id = $1 AND user_id = $2
 `
@@ -142,6 +164,8 @@ func (q *Queries) GetTermByID(ctx context.Context, arg GetTermByIDParams) (Term,
 		&i.EndDate,
 		&i.IsActive,
 		&i.CreatedAt,
+		&i.StartDate,
+		&i.StartingAmount,
 	)
 	return i, err
 }
@@ -189,7 +213,7 @@ func (q *Queries) ListDaysOff(ctx context.Context, termID int64) ([]pgtype.Date,
 }
 
 const listTerms = `-- name: ListTerms :many
-SELECT id, user_id, name, end_date, is_active, created_at
+SELECT id, user_id, name, end_date, is_active, created_at, start_date, starting_amount
 FROM app.terms
 WHERE user_id = $1
 ORDER BY end_date
@@ -211,6 +235,8 @@ func (q *Queries) ListTerms(ctx context.Context, userID int64) ([]Term, error) {
 			&i.EndDate,
 			&i.IsActive,
 			&i.CreatedAt,
+			&i.StartDate,
+			&i.StartingAmount,
 		); err != nil {
 			return nil, err
 		}
@@ -224,17 +250,25 @@ func (q *Queries) ListTerms(ctx context.Context, userID int64) ([]Term, error) {
 
 const updateActiveTerm = `-- name: UpdateActiveTerm :exec
 UPDATE app.terms
-SET name = $2, end_date = $3
+SET name = $2, start_date = $3, end_date = $4, starting_amount = $5
 WHERE id = $1
 `
 
 type UpdateActiveTermParams struct {
-	ID      int64
-	Name    string
-	EndDate pgtype.Date
+	ID             int64
+	Name           string
+	StartDate      pgtype.Date
+	EndDate        pgtype.Date
+	StartingAmount float64
 }
 
 func (q *Queries) UpdateActiveTerm(ctx context.Context, arg UpdateActiveTermParams) error {
-	_, err := q.db.Exec(ctx, updateActiveTerm, arg.ID, arg.Name, arg.EndDate)
+	_, err := q.db.Exec(ctx, updateActiveTerm,
+		arg.ID,
+		arg.Name,
+		arg.StartDate,
+		arg.EndDate,
+		arg.StartingAmount,
+	)
 	return err
 }

@@ -16,12 +16,14 @@ type Entry struct {
 }
 
 type Term struct {
-	ID        int64
-	UserID    int64
-	Name      string
-	EndDate   pgtype.Date
-	IsActive  bool
-	CreatedAt pgtype.Timestamptz
+	ID             int64
+	UserID         int64
+	Name           string
+	EndDate        pgtype.Date
+	IsActive       bool
+	CreatedAt      pgtype.Timestamptz
+	StartDate      pgtype.Date
+	StartingAmount float64
 }
 
 type TermDaysOff struct {

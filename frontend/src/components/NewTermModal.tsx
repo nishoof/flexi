@@ -26,7 +26,9 @@ export default function NewTermModal({
 }: Readonly<NewTermModalProps>) {
   const ref = useRef<HTMLDialogElement>(null);
   const [name, setName] = useState('');
+  const [startDate, setStartDate] = useState(currentDateYYYYmmDD);
   const [endDate, setEndDate] = useState(currentDateYYYYmmDD);
+  const [startingAmount, setStartingAmount] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -43,7 +45,9 @@ export default function NewTermModal({
     try {
       const created = await createTerm({
         name: name.trim(),
+        startDate,
         endDate,
+        startingAmount: Number(startingAmount),
         daysOff: [],
       });
       await activateTerm(created.id);
@@ -90,6 +94,23 @@ export default function NewTermModal({
           />
         </div>
 
+        {/* Start date */}
+        <div className="flex flex-col gap-2">
+          <label htmlFor="newTermStartDate" className="font-medium">
+            Start Date
+          </label>
+          <input
+            type="date"
+            id="newTermStartDate"
+            name="newTermStartDate"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            max={endDate}
+            className="px-3 py-2 bg-(--background) border border-(--border) rounded-lg focus:outline-none"
+            required
+          />
+        </div>
+
         {/* End date */}
         <div className="flex flex-col gap-2">
           <label htmlFor="newTermEndDate" className="font-medium">
@@ -101,6 +122,26 @@ export default function NewTermModal({
             name="newTermEndDate"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
+            min={startDate}
+            className="px-3 py-2 bg-(--background) border border-(--border) rounded-lg focus:outline-none"
+            required
+          />
+        </div>
+
+        {/* Starting amount */}
+        <div className="flex flex-col gap-2">
+          <label htmlFor="newTermStartingAmount" className="font-medium">
+            Starting Amount
+          </label>
+          <input
+            type="number"
+            id="newTermStartingAmount"
+            name="newTermStartingAmount"
+            value={startingAmount}
+            onChange={(e) => setStartingAmount(e.target.value)}
+            step="0.01"
+            min="0"
+            placeholder="0.00"
             className="px-3 py-2 bg-(--background) border border-(--border) rounded-lg focus:outline-none"
             required
           />

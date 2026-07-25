@@ -115,9 +115,11 @@ func TestTermsHandlerPUT(t *testing.T) {
 	// No days off campus
 
 	body := map[string]interface{}{
-		"name":     "Spring 2026",
-		"end_date": "2026-05-23",
-		"days_off": []string{},
+		"name":            "Spring 2026",
+		"start_date":      "2026-01-26",
+		"end_date":        "2026-05-23",
+		"starting_amount": 3010.0,
+		"days_off":        []string{},
 	}
 	bodyBytes, _ := json.Marshal(body)
 
@@ -127,9 +129,11 @@ func TestTermsHandlerPUT(t *testing.T) {
 	// One day off campus
 
 	body = map[string]interface{}{
-		"name":     "Spring 2026",
-		"end_date": "2026-05-23",
-		"days_off": []string{"2026-07-31"},
+		"name":            "Spring 2026",
+		"start_date":      "2026-01-26",
+		"end_date":        "2026-05-23",
+		"starting_amount": 3010.0,
+		"days_off":        []string{"2026-03-12"},
 	}
 	bodyBytes, _ = json.Marshal(body)
 
@@ -139,9 +143,11 @@ func TestTermsHandlerPUT(t *testing.T) {
 	// Multiple days off campus
 
 	body = map[string]interface{}{
-		"name":     "Spring 2026",
-		"end_date": "2026-05-23",
-		"days_off": []string{"2026-07-31", "2026-04-06"},
+		"name":            "Spring 2026",
+		"start_date":      "2026-01-26",
+		"end_date":        "2026-05-23",
+		"starting_amount": 3010.0,
+		"days_off":        []string{"2026-03-12", "2026-04-06"},
 	}
 	bodyBytes, _ = json.Marshal(body)
 
@@ -155,14 +161,51 @@ func TestTermsHandlerPUTValidation(t *testing.T) {
 		body         interface{}
 		expectedCode int
 	}{
+		{"missing start_date", map[string]interface{}{
+			"name":            "Spring 2026",
+			"end_date":        "2026-05-23",
+			"starting_amount": 3010.0,
+			"days_off":        []string{},
+		}, http.StatusBadRequest},
 		{"missing end_date", map[string]interface{}{
-			"name":     "Spring 2026",
-			"days_off": []string{},
+			"name":            "Spring 2026",
+			"start_date":      "2026-01-26",
+			"starting_amount": 3010.0,
+			"days_off":        []string{},
+		}, http.StatusBadRequest},
+		{"missing starting_amount", map[string]interface{}{
+			"name":       "Spring 2026",
+			"start_date": "2026-01-26",
+			"end_date":   "2026-05-23",
+			"days_off":   []string{},
+		}, http.StatusBadRequest},
+		{"negative starting_amount", map[string]interface{}{
+			"name":            "Spring 2026",
+			"start_date":      "2026-01-26",
+			"end_date":        "2026-05-23",
+			"starting_amount": -1.0,
+			"days_off":        []string{},
+		}, http.StatusBadRequest},
+		{"start after end", map[string]interface{}{
+			"name":            "Spring 2026",
+			"start_date":      "2026-05-24",
+			"end_date":        "2026-05-23",
+			"starting_amount": 3010.0,
+			"days_off":        []string{},
+		}, http.StatusBadRequest},
+		{"day off outside term", map[string]interface{}{
+			"name":            "Spring 2026",
+			"start_date":      "2026-01-26",
+			"end_date":        "2026-05-23",
+			"starting_amount": 3010.0,
+			"days_off":        []string{"2026-07-31"},
 		}, http.StatusBadRequest},
 		{"invalid end_date", map[string]interface{}{
-			"name":     "Spring 2026",
-			"end_date": "not-a-date",
-			"days_off": []string{},
+			"name":            "Spring 2026",
+			"start_date":      "2026-01-26",
+			"end_date":        "not-a-date",
+			"starting_amount": 3010.0,
+			"days_off":        []string{},
 		}, http.StatusBadRequest},
 		{"invalid JSON", "not-json", http.StatusBadRequest},
 	}
@@ -189,9 +232,11 @@ func TestTermsHandlerPUTValidation(t *testing.T) {
 
 func TestTermsHandlerPOSTCreate(t *testing.T) {
 	body := map[string]interface{}{
-		"name":     "Fall 2026",
-		"end_date": "2026-12-15",
-		"days_off": []string{"2026-11-26"},
+		"name":            "Fall 2026",
+		"start_date":      "2026-08-24",
+		"end_date":        "2026-12-15",
+		"starting_amount": 2800.0,
+		"days_off":        []string{"2026-11-26"},
 	}
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
@@ -211,8 +256,14 @@ func TestTermsHandlerPOSTCreate(t *testing.T) {
 	if created.Name != "Fall 2026" {
 		t.Fatalf("POST create: expected name Fall 2026, got %q", created.Name)
 	}
+	if created.StartDate == nil || created.StartDate.String() != "2026-08-24" {
+		t.Fatalf("POST create: expected start_date 2026-08-24, got %v", created.StartDate)
+	}
 	if created.EndDate == nil || created.EndDate.String() != "2026-12-15" {
 		t.Fatalf("POST create: expected end_date 2026-12-15, got %v", created.EndDate)
+	}
+	if created.StartingAmount != 2800.0 {
+		t.Fatalf("POST create: expected starting_amount 2800, got %v", created.StartingAmount)
 	}
 	if created.IsActive {
 		t.Fatal("POST create: new term should be inactive")
@@ -242,14 +293,44 @@ func TestTermsHandlerPOSTCreateValidation(t *testing.T) {
 		body         interface{}
 		expectedCode int
 	}{
+		{"missing start_date", map[string]interface{}{
+			"name":            "Winter 2027",
+			"end_date":        "2027-03-20",
+			"starting_amount": 2500.0,
+			"days_off":        []string{},
+		}, http.StatusBadRequest},
 		{"missing end_date", map[string]interface{}{
-			"name":     "Winter 2027",
-			"days_off": []string{},
+			"name":            "Winter 2027",
+			"start_date":      "2027-01-05",
+			"starting_amount": 2500.0,
+			"days_off":        []string{},
+		}, http.StatusBadRequest},
+		{"missing starting_amount", map[string]interface{}{
+			"name":       "Winter 2027",
+			"start_date": "2027-01-05",
+			"end_date":   "2027-03-20",
+			"days_off":   []string{},
+		}, http.StatusBadRequest},
+		{"negative starting_amount", map[string]interface{}{
+			"name":            "Winter 2027",
+			"start_date":      "2027-01-05",
+			"end_date":        "2027-03-20",
+			"starting_amount": -10.0,
+			"days_off":        []string{},
+		}, http.StatusBadRequest},
+		{"start after end", map[string]interface{}{
+			"name":            "Winter 2027",
+			"start_date":      "2027-03-21",
+			"end_date":        "2027-03-20",
+			"starting_amount": 2500.0,
+			"days_off":        []string{},
 		}, http.StatusBadRequest},
 		{"invalid end_date", map[string]interface{}{
-			"name":     "Winter 2027",
-			"end_date": "not-a-date",
-			"days_off": []string{},
+			"name":            "Winter 2027",
+			"start_date":      "2027-01-05",
+			"end_date":        "not-a-date",
+			"starting_amount": 2500.0,
+			"days_off":        []string{},
 		}, http.StatusBadRequest},
 		{"invalid JSON", "not-json", http.StatusBadRequest},
 	}
@@ -300,9 +381,11 @@ func TestTermsHandlerGETByIDNotFound(t *testing.T) {
 func TestTermsHandlerPOSTActivate(t *testing.T) {
 	// Ensure we have a second inactive term to activate.
 	body := map[string]interface{}{
-		"name":     "Winter 2027",
-		"end_date": "2027-03-20",
-		"days_off": []string{},
+		"name":            "Winter 2027",
+		"start_date":      "2027-01-05",
+		"end_date":        "2027-03-20",
+		"starting_amount": 2500.0,
+		"days_off":        []string{},
 	}
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {

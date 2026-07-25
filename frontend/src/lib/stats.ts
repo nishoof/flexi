@@ -17,51 +17,53 @@ export const zeroedStats: Stats = {
 /**
  * Calculates the stats based on the given entries and term.
  * Entries must be in reverse chronological order (most recent first).
+ * With no entries, uses the term's start date and starting amount as the
+ * initial snapshot.
  */
 export function calculateStats(entries: Entry[], term: Term): Stats {
-    const numEntries = entries.length;
-    if (numEntries === 0) {
-        return zeroedStats;
-    }
-
     const mostRecentEntry = entries[0];
-    const oldestEntry = entries[numEntries - 1];
+    const todayDateStr = mostRecentEntry?.date ?? term.startDate;
+    const currentFlexiRemaining = mostRecentEntry?.amountRemaining ?? term.startingAmount;
 
-    const endDateStr = term.endDate;
-    const startDateStr = oldestEntry.date;
-    const todayDateStr = mostRecentEntry.date;
+    const { daysUsed, daysRemaining } = calculateDaysUsedAndRemaining(
+        term.startDate,
+        todayDateStr,
+        term.endDate,
+        term.daysOff,
+    );
 
-    const { daysUsed, daysRemaining } = calculateDaysUsedAndRemaining(startDateStr, todayDateStr, endDateStr, term.daysOff);
+    const dailySpend = daysUsed > 0
+        ? (term.startingAmount - currentFlexiRemaining) / daysUsed
+        : 0;
 
-    const currentFlexiRemaining = mostRecentEntry.amountRemaining;
+    const endingProjection = daysRemaining > 0
+        ? currentFlexiRemaining - (dailySpend * daysRemaining)
+        : currentFlexiRemaining;
 
-    const originalFlexi = oldestEntry.amountRemaining;
-    const dailySpend = daysUsed > 0 ? (originalFlexi - currentFlexiRemaining) / daysUsed : 0;
+    const remainingPerDay = daysRemaining > 0
+        ? currentFlexiRemaining / daysRemaining
+        : 0;
 
-    const endingProjection = daysRemaining > 0 ? currentFlexiRemaining - (dailySpend * daysRemaining) : currentFlexiRemaining;
-
-    const remainingPerDay = daysRemaining > 0 ? currentFlexiRemaining / daysRemaining : 0;
-
-    const stats: Stats = {
+    return {
         currentFlexiRemaining,
         dailySpend,
         endingProjection,
         remainingPerDay,
     };
-    return stats;
 }
 
 /**
- * Calculates the number of days used (from the start date to today, not
- * including today) and the number of days remaining (from today to the
- * end date, not including today). Takes into account any days off.
+ * Calculates the number of days used and the number of days remaining. 
+ * Days used: from the start date to today, not including today.
+ * Days remaining: from today to the end date, not including today.
+ * Takes into account any days off within those windows.
  */
 function calculateDaysUsedAndRemaining(
     startDateStr: string,
-    todayDateStr: string, 
-    endDateStr: string, 
+    todayDateStr: string,
+    endDateStr: string,
     daysOffDateStrs: string[],
-): { 
+): {
     daysUsed: number,
     daysRemaining: number,
 } {
@@ -69,15 +71,19 @@ function calculateDaysUsedAndRemaining(
     let daysUsed = calculateDateDifference(startDateStr, todayDateStr);
 
     for (const dayOffStr of daysOffDateStrs) {
-        const diff = calculateDateDifference(todayDateStr, dayOffStr);
-        if (diff > 0) {
-            daysRemaining--;
-        } else if (diff < 0) {
+        // Past window: start <= dayOff < today
+        if (dayOffStr >= startDateStr && dayOffStr < todayDateStr) {
             daysUsed--;
+        // Future window: today < dayOff <= end
+        } else if (dayOffStr > todayDateStr && dayOffStr <= endDateStr) {
+            daysRemaining--;
         }
     }
 
-    return { daysUsed, daysRemaining };
+    return {
+        daysUsed: Math.max(0, daysUsed),
+        daysRemaining: Math.max(0, daysRemaining),
+    };
 }
 
 /**
