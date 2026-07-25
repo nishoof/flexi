@@ -15,7 +15,7 @@ import {
   type Entry,
   type Term,
 } from '../lib/api';
-import { calculateStats } from '../lib/stats';
+import { calculateStats, zeroedStats } from '../lib/stats';
 
 type AuthStatus = 'unauthenticated' | 'loading' | 'authenticated';
 
@@ -29,7 +29,7 @@ export default function OverviewPage() {
   const [term, setTerm] = useState<Term | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
 
-  const stats = calculateStats(entries, term);
+  const stats = term ? calculateStats(entries, term) : zeroedStats;
 
   const handleUnauthorized = React.useEffectEvent(() => {
     // Drop any data that belonged to the previous session so the sign-in
