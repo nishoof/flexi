@@ -1,6 +1,6 @@
-import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
-import { useState } from 'react';
-import { login } from '../lib/api';
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
+import { useState } from "react";
+import { login } from "../lib/api";
 
 interface LoginProps {
   /** Callback to invoke when login is successful */
@@ -15,7 +15,7 @@ export default function Login({ onSuccessfulLogin }: Readonly<LoginProps>) {
   async function handleGoogleLogin(credentialResponse: CredentialResponse) {
     const credential = credentialResponse.credential;
     if (!credential) {
-      setError('No credential received from Google. Please try again.');
+      setError("No credential received from Google. Please try again.");
       return;
     }
 
@@ -26,7 +26,7 @@ export default function Login({ onSuccessfulLogin }: Readonly<LoginProps>) {
       await login(credential);
       onSuccessfulLogin();
     } catch {
-      setError('Sign-in failed. Please try again.');
+      setError("Sign-in failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -39,7 +39,7 @@ export default function Login({ onSuccessfulLogin }: Readonly<LoginProps>) {
       ) : (
         <GoogleLogin
           onSuccess={handleGoogleLogin}
-          onError={() => setError('Sign-in failed. Please try again.')}
+          onError={() => setError("Sign-in failed. Please try again.")}
         />
       )}
 

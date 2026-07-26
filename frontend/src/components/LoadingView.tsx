@@ -6,7 +6,9 @@ export default function LoadingView() {
         className="size-8 rounded-full border-2 border-(--border) border-t-(--accent) animate-spin"
         aria-hidden="true"
       />
-      <p className="text-sm text-(--foreground)/70">Loading your dashboard...</p>
+      <p className="text-sm text-(--foreground)/70">
+        Loading your dashboard...
+      </p>
     </div>
   );
 }

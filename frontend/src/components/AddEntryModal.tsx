@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
-import { createEntry, isAuthError } from '../lib/api';
-import { currentDateYYYYmmDD } from '../lib/format';
+import { useEffect, useRef } from "react";
+import { createEntry, isAuthError } from "../lib/api";
+import { currentDateYYYYmmDD } from "../lib/format";
 
 interface AddEntryModalProps {
   /** Boolean indicating if the modal is open */
@@ -35,8 +35,8 @@ export default function AddEntryModal({
     close();
 
     const formData = new FormData(event.currentTarget);
-    const flexiBalance = Number(formData.get('flexiBalance'));
-    const date = formData.get('date') as string;
+    const flexiBalance = Number(formData.get("flexiBalance"));
+    const date = formData.get("date") as string;
 
     try {
       await createEntry(flexiBalance, date);
@@ -68,10 +68,7 @@ export default function AddEntryModal({
       >
         {/* Input: Flexi Balance Remaining */}
         <div className="flex flex-col gap-2">
-          <label
-            htmlFor="flexiBalance"
-            className="font-medium"
-          >
+          <label htmlFor="flexiBalance" className="font-medium">
             Flexi Balance Remaining
           </label>
           <input
@@ -87,10 +84,7 @@ export default function AddEntryModal({
 
         {/* Input: Date */}
         <div className="flex flex-col gap-2">
-          <label
-            htmlFor="date"
-            className="font-medium"
-          >
+          <label htmlFor="date" className="font-medium">
             Date
           </label>
           <input

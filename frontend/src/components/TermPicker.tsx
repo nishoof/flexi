@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import type { Term } from '../lib/api';
-import { formatDate } from '../lib/format';
+import { useEffect, useRef, useState } from "react";
+import type { Term } from "../lib/api";
+import { formatDate } from "../lib/format";
 
 interface TermPickerProps {
   /** Terms available to the user */
@@ -33,16 +33,16 @@ export default function TermPicker({
     }
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         setIsOpen(false);
       }
     }
 
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen]);
 

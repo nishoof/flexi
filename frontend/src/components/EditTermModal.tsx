@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
-import { isAuthError, updateTerm, type Term } from '../lib/api';
-import { currentDateYYYYmmDD, formatDate } from '../lib/format';
+import React, { useEffect, useRef } from "react";
+import { isAuthError, updateTerm, type Term } from "../lib/api";
+import { currentDateYYYYmmDD, formatDate } from "../lib/format";
 
 interface EditTermModalProps {
   /** Boolean indicating if the modal is open */
@@ -24,10 +24,16 @@ export default function EditTermModal({
   onUnauthorized,
 }: Readonly<EditTermModalProps>) {
   const ref = useRef<HTMLDialogElement>(null);
-  const [localDaysOff, setLocalDaysOff] = React.useState<string[]>(initialTerm.daysOff);
-  const [localStartDate, setLocalStartDate] = React.useState(initialTerm.startDate);
+  const [localDaysOff, setLocalDaysOff] = React.useState<string[]>(
+    initialTerm.daysOff,
+  );
+  const [localStartDate, setLocalStartDate] = React.useState(
+    initialTerm.startDate,
+  );
   const [localEndDate, setLocalEndDate] = React.useState(initialTerm.endDate);
-  const [localStartingAmount, setLocalStartingAmount] = React.useState(String(initialTerm.startingAmount));
+  const [localStartingAmount, setLocalStartingAmount] = React.useState(
+    String(initialTerm.startingAmount),
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -85,14 +91,14 @@ export default function EditTermModal({
         max={localEndDate}
         className="w-full px-3 py-2 bg-(--background) focus:outline-none"
         onKeyDown={(e) => {
-          if (e.key !== 'Enter') return;
+          if (e.key !== "Enter") return;
           e.preventDefault();
           const newDayOff = (e.target as HTMLInputElement).value.trim();
           if (!newDayOff) return;
           if (localDaysOff.includes(newDayOff)) return;
           if (newDayOff < localStartDate || newDayOff > localEndDate) return;
           setLocalDaysOff([...localDaysOff, newDayOff]);
-          (e.target as HTMLInputElement).value = '';
+          (e.target as HTMLInputElement).value = "";
         }}
       />
     </div>
@@ -118,10 +124,7 @@ export default function EditTermModal({
       >
         {/* Start date */}
         <div className="flex flex-col gap-2">
-          <label
-            htmlFor="startDate"
-            className="font-medium"
-          >
+          <label htmlFor="startDate" className="font-medium">
             Start Date
           </label>
           <input
@@ -138,10 +141,7 @@ export default function EditTermModal({
 
         {/* End date */}
         <div className="flex flex-col gap-2">
-          <label
-            htmlFor="endDate"
-            className="font-medium"
-          >
+          <label htmlFor="endDate" className="font-medium">
             End Date
           </label>
           <input
@@ -158,10 +158,7 @@ export default function EditTermModal({
 
         {/* Starting amount */}
         <div className="flex flex-col gap-2">
-          <label
-            htmlFor="startingAmount"
-            className="font-medium"
-          >
+          <label htmlFor="startingAmount" className="font-medium">
             Starting Amount
           </label>
           <input
@@ -180,10 +177,7 @@ export default function EditTermModal({
 
         {/* Days off */}
         <div className="flex flex-col gap-2">
-          <label
-            htmlFor="daysOff"
-            className="font-medium"
-          >
+          <label htmlFor="daysOff" className="font-medium">
             Days Off Campus
           </label>
           {daysOffList}

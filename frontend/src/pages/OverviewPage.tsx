@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import AddEntryModal from '../components/AddEntryModal';
-import EditTermModal from '../components/EditTermModal';
-import EntriesTable from '../components/EntriesTable';
-import LoadingView from '../components/LoadingView';
-import NewTermModal from '../components/NewTermModal';
-import SignInScreen from '../components/SignInScreen';
-import StatCard from '../components/StatCard';
-import TermPicker from '../components/TermPicker';
+import React, { useEffect, useState } from "react";
+import AddEntryModal from "../components/AddEntryModal";
+import EditTermModal from "../components/EditTermModal";
+import EntriesTable from "../components/EntriesTable";
+import LoadingView from "../components/LoadingView";
+import NewTermModal from "../components/NewTermModal";
+import SignInScreen from "../components/SignInScreen";
+import StatCard from "../components/StatCard";
+import TermPicker from "../components/TermPicker";
 import {
   activateTerm,
   getEntries,
@@ -14,13 +14,13 @@ import {
   isAuthError,
   type Entry,
   type Term,
-} from '../lib/api';
-import { calculateStats, zeroedStats } from '../lib/stats';
+} from "../lib/api";
+import { calculateStats, zeroedStats } from "../lib/stats";
 
-type AuthStatus = 'unauthenticated' | 'loading' | 'authenticated';
+type AuthStatus = "unauthenticated" | "loading" | "authenticated";
 
 export default function OverviewPage() {
-  const [authStatus, setAuthStatus] = useState<AuthStatus>('loading');
+  const [authStatus, setAuthStatus] = useState<AuthStatus>("loading");
   const [isAddEntryModalOpen, setIsAddEntryModalOpen] = useState(false);
   const [isEditTermModalOpen, setIsEditTermModalOpen] = useState(false);
   const [isNewTermModalOpen, setIsNewTermModalOpen] = useState(false);
@@ -37,7 +37,7 @@ export default function OverviewPage() {
     setTerms([]);
     setTerm(null);
     setEntries([]);
-    setAuthStatus('unauthenticated');
+    setAuthStatus("unauthenticated");
   });
 
   const refreshDashboard = React.useEffectEvent(async () => {
@@ -48,7 +48,7 @@ export default function OverviewPage() {
       ]);
       const activeTerm = fetchedTerms.find((t) => t.isActive);
       if (!activeTerm) {
-        throw new Error('No active term');
+        throw new Error("No active term");
       }
       setTerms(fetchedTerms);
       setTerm(activeTerm);
@@ -76,7 +76,7 @@ export default function OverviewPage() {
       const fetchedTerms = await getTerms();
       const activeTerm = fetchedTerms.find((t) => t.isActive);
       if (!activeTerm) {
-        throw new Error('No active term');
+        throw new Error("No active term");
       }
       setTerms(fetchedTerms);
       setTerm(activeTerm);
@@ -98,23 +98,23 @@ export default function OverviewPage() {
       ]);
       const activeTerm = fetchedTerms.find((t) => t.isActive);
       if (!activeTerm) {
-        throw new Error('No active term');
+        throw new Error("No active term");
       }
       setTerms(fetchedTerms);
       setTerm(activeTerm);
       setEntries(fetchedEntries);
-      setAuthStatus('authenticated');
+      setAuthStatus("authenticated");
     } catch (error) {
       if (isAuthError(error)) {
         handleUnauthorized();
       } else {
-        setAuthStatus('unauthenticated');
+        setAuthStatus("unauthenticated");
       }
     }
   });
 
   const handleSuccessfulLogin = React.useEffectEvent(async () => {
-    setAuthStatus('loading');
+    setAuthStatus("loading");
     await initialLoad();
   });
 
@@ -136,11 +136,11 @@ export default function OverviewPage() {
     initialLoad();
   }, []);
 
-  if (authStatus === 'unauthenticated') {
+  if (authStatus === "unauthenticated") {
     return <SignInScreen onSuccessfulLogin={handleSuccessfulLogin} />;
   }
 
-  if (authStatus === 'loading' || term === null) {
+  if (authStatus === "loading" || term === null) {
     return <LoadingView />;
   }
 
@@ -164,7 +164,7 @@ export default function OverviewPage() {
       </div>
 
       <EditTermModal
-        key={`${term.id}-${term.daysOff.join(',')}-${term.startDate}-${term.endDate}-${term.startingAmount}`} // Force remount when term settings change
+        key={`${term.id}-${term.daysOff.join(",")}-${term.startDate}-${term.endDate}-${term.startingAmount}`} // Force remount when term settings change
         isOpen={isEditTermModalOpen}
         close={() => setIsEditTermModalOpen(false)}
         onTermUpdated={refreshTerm}

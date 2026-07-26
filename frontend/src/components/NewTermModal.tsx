@@ -1,10 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import {
-  activateTerm,
-  createTerm,
-  isAuthError,
-} from '../lib/api';
-import { currentDateYYYYmmDD } from '../lib/format';
+import { useEffect, useRef, useState } from "react";
+import { activateTerm, createTerm, isAuthError } from "../lib/api";
+import { currentDateYYYYmmDD } from "../lib/format";
 
 interface NewTermModalProps {
   /** Boolean indicating if the modal is open */
@@ -25,10 +21,10 @@ export default function NewTermModal({
   onUnauthorized,
 }: Readonly<NewTermModalProps>) {
   const ref = useRef<HTMLDialogElement>(null);
-  const [name, setName] = useState('');
+  const [name, setName] = useState("");
   const [startDate, setStartDate] = useState(currentDateYYYYmmDD);
   const [endDate, setEndDate] = useState(currentDateYYYYmmDD);
-  const [startingAmount, setStartingAmount] = useState('');
+  const [startingAmount, setStartingAmount] = useState("");
 
   useEffect(() => {
     if (isOpen) {
