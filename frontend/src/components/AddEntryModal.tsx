@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { createEntry } from "../lib/api";
 import { currentDateYYYYmmDD } from "../lib/format";
 
 interface AddEntryModalProps {
@@ -7,10 +6,8 @@ interface AddEntryModalProps {
   isOpen: boolean;
   /** Function to close the modal */
   close: () => void;
-  /** Function to be called after an entry is added */
-  onEntryAdded: () => void;
-  /** Called when the save request fails */
-  onFailure: (error: unknown) => void;
+  /** Called with the form values so the parent can save the entry */
+  onEntryAdded: (amountRemaining: number, date: string) => void;
 }
 
 /** Modal component for adding a new entry */
@@ -18,7 +15,6 @@ export default function AddEntryModal({
   isOpen,
   close,
   onEntryAdded,
-  onFailure,
 }: Readonly<AddEntryModalProps>) {
   const ref = useRef<HTMLDialogElement>(null);
 
@@ -30,7 +26,7 @@ export default function AddEntryModal({
     }
   }, [isOpen]);
 
-  async function saveEntry(event: React.FormEvent<HTMLFormElement>) {
+  function saveEntry(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     close();
 
@@ -38,12 +34,7 @@ export default function AddEntryModal({
     const flexiBalance = Number(formData.get("flexiBalance"));
     const date = formData.get("date") as string;
 
-    try {
-      await createEntry(flexiBalance, date);
-      onEntryAdded();
-    } catch (error) {
-      onFailure(error);
-    }
+    onEntryAdded(flexiBalance, date);
   }
 
   return (

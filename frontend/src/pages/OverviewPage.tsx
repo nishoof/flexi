@@ -10,6 +10,7 @@ import TermPicker from "../components/TermPicker";
 import Toast from "../components/Toast";
 import {
   activateTerm,
+  createEntry,
   getEntries,
   getTerms,
   isAuthError,
@@ -75,15 +76,6 @@ export default function OverviewPage() {
     }
   });
 
-  const refreshEntries = React.useEffectEvent(async () => {
-    try {
-      const fetchedEntries = await getEntries();
-      setEntries(fetchedEntries);
-    } catch (error) {
-      handleRequestError(error, "Could not refresh entries");
-    }
-  });
-
   const refreshTerm = React.useEffectEvent(async () => {
     try {
       const fetchedTerms = await getTerms();
@@ -138,6 +130,27 @@ export default function OverviewPage() {
     setAuthStatus("loading");
     await initialLoad();
   });
+
+  const handleAddEntry = React.useEffectEvent(
+    async (amountRemaining: number, date: string) => {
+      if (entries.some((entry) => entry.date === date)) {
+        setToast({ id: Date.now(), message: "Could not save entry" });
+        return;
+      }
+
+      const next: Entry = { amountRemaining, date };
+      setEntries((current) => insertEntrySorted(current, next));
+
+      try {
+        await createEntry(amountRemaining, date);
+      } catch (error) {
+        setEntries((current) =>
+          current.filter((entry) => entry.date !== date),
+        );
+        handleRequestError(error, "Could not save entry");
+      }
+    },
+  );
 
   const handleSelectTerm = React.useEffectEvent(async (nextTerm: Term) => {
     if (nextTerm.isActive) {
@@ -249,10 +262,7 @@ export default function OverviewPage() {
         <AddEntryModal
           isOpen={isAddEntryModalOpen}
           close={() => setIsAddEntryModalOpen(false)}
-          onEntryAdded={refreshEntries}
-          onFailure={(error) =>
-            handleRequestError(error, "Could not save entry")
-          }
+          onEntryAdded={handleAddEntry}
         />
 
         <button
@@ -267,4 +277,13 @@ export default function OverviewPage() {
       {toastElement}
     </div>
   );
+}
+
+/** Insert an entry so the list stays reverse-chronological (newest first). */
+function insertEntrySorted(entries: Entry[], next: Entry): Entry[] {
+  const insertAt = entries.findIndex((entry) => entry.date < next.date);
+  if (insertAt === -1) {
+    return [...entries, next];
+  }
+  return [...entries.slice(0, insertAt), next, ...entries.slice(insertAt)];
 }
