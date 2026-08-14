@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { updateTerm, type Term } from "../lib/api";
+import { type Term } from "../lib/api";
 import { currentDateYYYYmmDD, formatDate } from "../lib/format";
 
 interface EditTermModalProps {
@@ -7,12 +7,10 @@ interface EditTermModalProps {
   isOpen: boolean;
   /** Function to close the modal */
   close: () => void;
-  /** Function to be called after the term is updated */
-  onTermUpdated: () => void;
+  /** Called with the edited term so the parent can save it */
+  onTermUpdated: (term: Term) => void;
   /** Initial term data to populate the modal */
   initialTerm: Term;
-  /** Called when the save request fails */
-  onFailure: (error: unknown) => void;
 }
 
 /** Modal component for editing the term */
@@ -21,7 +19,6 @@ export default function EditTermModal({
   close,
   onTermUpdated,
   initialTerm,
-  onFailure,
 }: Readonly<EditTermModalProps>) {
   const ref = useRef<HTMLDialogElement>(null);
   const [localDaysOff, setLocalDaysOff] = React.useState<string[]>(
@@ -43,22 +40,17 @@ export default function EditTermModal({
     }
   }, [isOpen]);
 
-  async function saveTerm(event: React.FormEvent<HTMLFormElement>) {
+  function saveTerm(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     close();
 
-    try {
-      await updateTerm({
-        name: initialTerm.name,
-        startDate: localStartDate,
-        endDate: localEndDate,
-        startingAmount: Number(localStartingAmount),
-        daysOff: localDaysOff,
-      });
-      onTermUpdated();
-    } catch (error) {
-      onFailure(error);
-    }
+    onTermUpdated({
+      ...initialTerm,
+      startDate: localStartDate,
+      endDate: localEndDate,
+      startingAmount: Number(localStartingAmount),
+      daysOff: localDaysOff,
+    });
   }
 
   const daysOffList = (

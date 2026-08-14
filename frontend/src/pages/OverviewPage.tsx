@@ -14,6 +14,7 @@ import {
   getEntries,
   getTerms,
   isAuthError,
+  updateTerm,
   type Entry,
   type Term,
 } from "../lib/api";
@@ -73,20 +74,6 @@ export default function OverviewPage() {
       setEntries(fetchedEntries);
     } catch (error) {
       handleRequestError(error, "Could not refresh dashboard");
-    }
-  });
-
-  const refreshTerm = React.useEffectEvent(async () => {
-    try {
-      const fetchedTerms = await getTerms();
-      const activeTerm = fetchedTerms.find((t) => t.isActive);
-      if (!activeTerm) {
-        throw new Error("No active term");
-      }
-      setTerms(fetchedTerms);
-      setTerm(activeTerm);
-    } catch (error) {
-      handleRequestError(error, "Could not refresh term");
     }
   });
 
@@ -151,6 +138,30 @@ export default function OverviewPage() {
       }
     },
   );
+
+  const handleEditTerm = React.useEffectEvent(async (next: Term) => {
+    const previousTerm = term;
+    const previousTerms = terms;
+
+    setTerm(next);
+    setTerms((current) =>
+      current.map((t) => (t.id === next.id ? next : t)),
+    );
+
+    try {
+      await updateTerm({
+        name: next.name,
+        startDate: next.startDate,
+        endDate: next.endDate,
+        startingAmount: next.startingAmount,
+        daysOff: next.daysOff,
+      });
+    } catch (error) {
+      setTerm(previousTerm);
+      setTerms(previousTerms);
+      handleRequestError(error, "Could not save term");
+    }
+  });
 
   const handleSelectTerm = React.useEffectEvent(async (nextTerm: Term) => {
     if (nextTerm.isActive) {
@@ -231,9 +242,8 @@ export default function OverviewPage() {
         key={`${term.id}-${term.daysOff.join(",")}-${term.startDate}-${term.endDate}-${term.startingAmount}`} // Force remount when term settings change
         isOpen={isEditTermModalOpen}
         close={() => setIsEditTermModalOpen(false)}
-        onTermUpdated={refreshTerm}
+        onTermUpdated={handleEditTerm}
         initialTerm={term}
-        onFailure={(error) => handleRequestError(error, "Could not save term")}
       />
 
       <NewTermModal
