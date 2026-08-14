@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { activateTerm, createTerm, isAuthError } from "../lib/api";
+import { activateTerm, createTerm } from "../lib/api";
 import { currentDateYYYYmmDD } from "../lib/format";
 
 interface NewTermModalProps {
@@ -9,8 +9,8 @@ interface NewTermModalProps {
   close: () => void;
   /** Function to be called after the term is created and activated */
   onTermCreated: () => void;
-  /** Called when the session is no longer valid */
-  onUnauthorized: () => void;
+  /** Called when the create request fails */
+  onFailure: (error: unknown) => void;
 }
 
 /** Modal component for creating and activating a new term */
@@ -18,7 +18,7 @@ export default function NewTermModal({
   isOpen,
   close,
   onTermCreated,
-  onUnauthorized,
+  onFailure,
 }: Readonly<NewTermModalProps>) {
   const ref = useRef<HTMLDialogElement>(null);
   const [name, setName] = useState("");
@@ -49,9 +49,7 @@ export default function NewTermModal({
       await activateTerm(created.id);
       onTermCreated();
     } catch (error) {
-      if (isAuthError(error)) {
-        onUnauthorized();
-      }
+      onFailure(error);
     }
   }
 

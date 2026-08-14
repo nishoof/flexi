@@ -7,6 +7,7 @@ import NewTermModal from "../components/NewTermModal";
 import SignInScreen from "../components/SignInScreen";
 import StatCard from "../components/StatCard";
 import TermPicker from "../components/TermPicker";
+import Toast from "../components/Toast";
 import {
   activateTerm,
   getEntries,
@@ -17,7 +18,8 @@ import {
 } from "../lib/api";
 import { calculateStats, zeroedStats } from "../lib/stats";
 
-type AuthStatus = "unauthenticated" | "loading" | "authenticated";
+type AuthStatus =
+  "unauthenticated" | "loading" | "load_failed" | "authenticated";
 
 export default function OverviewPage() {
   const [authStatus, setAuthStatus] = useState<AuthStatus>("loading");
@@ -28,6 +30,9 @@ export default function OverviewPage() {
   const [terms, setTerms] = useState<Term[]>([]);
   const [term, setTerm] = useState<Term | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [toast, setToast] = useState<{ id: number; message: string } | null>(
+    null,
+  );
 
   const stats = term ? calculateStats(entries, term) : zeroedStats;
 
@@ -37,8 +42,20 @@ export default function OverviewPage() {
     setTerms([]);
     setTerm(null);
     setEntries([]);
+    setToast(null);
     setAuthStatus("unauthenticated");
   });
+
+  // Auth errors send the user to sign-in. Everything else gets a toast.
+  const handleRequestError = React.useEffectEvent(
+    (error: unknown, message: string) => {
+      if (isAuthError(error)) {
+        handleUnauthorized();
+      } else {
+        setToast({ id: Date.now(), message });
+      }
+    },
+  );
 
   const refreshDashboard = React.useEffectEvent(async () => {
     try {
@@ -54,9 +71,7 @@ export default function OverviewPage() {
       setTerm(activeTerm);
       setEntries(fetchedEntries);
     } catch (error) {
-      if (isAuthError(error)) {
-        handleUnauthorized();
-      }
+      handleRequestError(error, "Could not refresh dashboard");
     }
   });
 
@@ -65,9 +80,7 @@ export default function OverviewPage() {
       const fetchedEntries = await getEntries();
       setEntries(fetchedEntries);
     } catch (error) {
-      if (isAuthError(error)) {
-        handleUnauthorized();
-      }
+      handleRequestError(error, "Could not refresh entries");
     }
   });
 
@@ -81,9 +94,7 @@ export default function OverviewPage() {
       setTerms(fetchedTerms);
       setTerm(activeTerm);
     } catch (error) {
-      if (isAuthError(error)) {
-        handleUnauthorized();
-      }
+      handleRequestError(error, "Could not refresh term");
     }
   });
 
@@ -103,17 +114,27 @@ export default function OverviewPage() {
       setTerms(fetchedTerms);
       setTerm(activeTerm);
       setEntries(fetchedEntries);
+      setToast(null);
       setAuthStatus("authenticated");
     } catch (error) {
       if (isAuthError(error)) {
         handleUnauthorized();
       } else {
-        setAuthStatus("unauthenticated");
+        // The load_failed screen has its own message — no toast needed.
+        setToast(null);
+        setAuthStatus("load_failed");
       }
     }
   });
 
   const handleSuccessfulLogin = React.useEffectEvent(async () => {
+    setToast(null);
+    setAuthStatus("loading");
+    await initialLoad();
+  });
+
+  const handleRetryLoad = React.useEffectEvent(async () => {
+    setToast(null);
     setAuthStatus("loading");
     await initialLoad();
   });
@@ -126,9 +147,7 @@ export default function OverviewPage() {
       await activateTerm(nextTerm.id);
       await refreshDashboard();
     } catch (error) {
-      if (isAuthError(error)) {
-        handleUnauthorized();
-      }
+      handleRequestError(error, "Could not switch term");
     }
   });
 
@@ -136,12 +155,44 @@ export default function OverviewPage() {
     initialLoad();
   }, []);
 
+  const toastElement = toast ? (
+    <Toast
+      key={toast.id}
+      message={toast.message}
+      onDismiss={() => setToast(null)}
+    />
+  ) : null;
+
   if (authStatus === "unauthenticated") {
-    return <SignInScreen onSuccessfulLogin={handleSuccessfulLogin} />;
+    return (
+      <>
+        <SignInScreen onSuccessfulLogin={handleSuccessfulLogin} />
+        {toastElement}
+      </>
+    );
   }
 
-  if (authStatus === "loading" || term === null) {
+  if (authStatus === "loading") {
     return <LoadingView />;
+  }
+
+  if (authStatus === "load_failed" || term === null) {
+    // load_failed: initial fetch failed. term === null: unexpected state — retry
+    // instead of spinning forever.
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-24">
+        <p className="text-sm text-(--foreground)/70">
+          Could not load your dashboard.
+        </p>
+        <button
+          type="button"
+          onClick={handleRetryLoad}
+          className="px-4 py-2 bg-(--accent) rounded-lg hover:bg-(--accent-dark) font-medium"
+        >
+          Retry
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -169,7 +220,7 @@ export default function OverviewPage() {
         close={() => setIsEditTermModalOpen(false)}
         onTermUpdated={refreshTerm}
         initialTerm={term}
-        onUnauthorized={handleUnauthorized}
+        onFailure={(error) => handleRequestError(error, "Could not save term")}
       />
 
       <NewTermModal
@@ -177,7 +228,9 @@ export default function OverviewPage() {
         isOpen={isNewTermModalOpen}
         close={() => setIsNewTermModalOpen(false)}
         onTermCreated={refreshDashboard}
-        onUnauthorized={handleUnauthorized}
+        onFailure={(error) =>
+          handleRequestError(error, "Could not create term")
+        }
       />
 
       <button
@@ -197,7 +250,9 @@ export default function OverviewPage() {
           isOpen={isAddEntryModalOpen}
           close={() => setIsAddEntryModalOpen(false)}
           onEntryAdded={refreshEntries}
-          onUnauthorized={handleUnauthorized}
+          onFailure={(error) =>
+            handleRequestError(error, "Could not save entry")
+          }
         />
 
         <button
@@ -208,6 +263,8 @@ export default function OverviewPage() {
           Add Entry
         </button>
       </div>
+
+      {toastElement}
     </div>
   );
 }

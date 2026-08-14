@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { createEntry, isAuthError } from "../lib/api";
+import { createEntry } from "../lib/api";
 import { currentDateYYYYmmDD } from "../lib/format";
 
 interface AddEntryModalProps {
@@ -9,8 +9,8 @@ interface AddEntryModalProps {
   close: () => void;
   /** Function to be called after an entry is added */
   onEntryAdded: () => void;
-  /** Called when the session is no longer valid */
-  onUnauthorized: () => void;
+  /** Called when the save request fails */
+  onFailure: (error: unknown) => void;
 }
 
 /** Modal component for adding a new entry */
@@ -18,7 +18,7 @@ export default function AddEntryModal({
   isOpen,
   close,
   onEntryAdded,
-  onUnauthorized,
+  onFailure,
 }: Readonly<AddEntryModalProps>) {
   const ref = useRef<HTMLDialogElement>(null);
 
@@ -42,9 +42,7 @@ export default function AddEntryModal({
       await createEntry(flexiBalance, date);
       onEntryAdded();
     } catch (error) {
-      if (isAuthError(error)) {
-        onUnauthorized();
-      }
+      onFailure(error);
     }
   }
 

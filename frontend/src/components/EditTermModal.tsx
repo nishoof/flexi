@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { isAuthError, updateTerm, type Term } from "../lib/api";
+import { updateTerm, type Term } from "../lib/api";
 import { currentDateYYYYmmDD, formatDate } from "../lib/format";
 
 interface EditTermModalProps {
@@ -11,8 +11,8 @@ interface EditTermModalProps {
   onTermUpdated: () => void;
   /** Initial term data to populate the modal */
   initialTerm: Term;
-  /** Called when the session is no longer valid */
-  onUnauthorized: () => void;
+  /** Called when the save request fails */
+  onFailure: (error: unknown) => void;
 }
 
 /** Modal component for editing the term */
@@ -21,7 +21,7 @@ export default function EditTermModal({
   close,
   onTermUpdated,
   initialTerm,
-  onUnauthorized,
+  onFailure,
 }: Readonly<EditTermModalProps>) {
   const ref = useRef<HTMLDialogElement>(null);
   const [localDaysOff, setLocalDaysOff] = React.useState<string[]>(
@@ -57,9 +57,7 @@ export default function EditTermModal({
       });
       onTermUpdated();
     } catch (error) {
-      if (isAuthError(error)) {
-        onUnauthorized();
-      }
+      onFailure(error);
     }
   }
 
