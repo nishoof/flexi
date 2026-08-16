@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/nishoof/flexi/backend/database"
-	"github.com/nishoof/flexi/backend/util"
+	"github.com/nishoof/flexi/backend/internal/database"
+	"github.com/nishoof/flexi/backend/internal/util"
 	"google.golang.org/api/idtoken"
 )
 

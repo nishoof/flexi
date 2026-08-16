@@ -12,9 +12,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/nishoof/flexi/backend/database"
-	"github.com/nishoof/flexi/backend/repository"
-	"github.com/nishoof/flexi/backend/util"
+	"github.com/nishoof/flexi/backend/internal/database"
+	"github.com/nishoof/flexi/backend/internal/repository"
+	"github.com/nishoof/flexi/backend/internal/util"
 )
 
 var errInvalidTerm = errors.New("Invalid term data")

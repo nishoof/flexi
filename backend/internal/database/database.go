@@ -8,7 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/nishoof/flexi/backend/repository"
+	"github.com/nishoof/flexi/backend/internal/repository"
 )
 
 var (

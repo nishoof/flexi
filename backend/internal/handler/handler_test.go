@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nishoof/flexi/backend/database"
+	"github.com/nishoof/flexi/backend/internal/database"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
@@ -112,7 +112,7 @@ func getMigrationScripts() ([]string, error) {
 	if !ok {
 		return nil, fmt.Errorf("failed to get caller info")
 	}
-	dir := filepath.Join(filepath.Dir(thisFile), "..", "..", "supabase", "migrations")
+	dir := filepath.Join(filepath.Dir(thisFile), "..", "..", "..", "supabase", "migrations")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read migrations dir: %w", err)

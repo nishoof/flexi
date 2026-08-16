@@ -9,8 +9,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/nishoof/flexi/backend/database"
-	"github.com/nishoof/flexi/backend/util"
+	"github.com/nishoof/flexi/backend/internal/database"
+	"github.com/nishoof/flexi/backend/internal/util"
 )
 
 const testEntryDate = "2026-03-09"
