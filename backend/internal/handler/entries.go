@@ -1,11 +1,9 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -24,54 +22,37 @@ type entry struct {
 	Date            *util.Date `json:"date"`
 }
 
-func EntriesHandler(w http.ResponseWriter, r *http.Request) {
+func RegisterEntries(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/entries", ListEntriesHandler)
+	mux.HandleFunc("POST /api/entries", CreateEntryHandler)
+}
+
+func ListEntriesHandler(w http.ResponseWriter, r *http.Request) {
 	userId, err := util.AuthenticateUser(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
-
-	var response []byte
 	ctx := r.Context()
 
-	switch r.Method {
-	case http.MethodGet:
-		response, err = getEntries(ctx, userId)
-	case http.MethodPost:
-		err = createEntry(ctx, r.Body, userId)
-	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	if errors.Is(err, errInvalidEntry) {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Write(response)
-}
-
-func getEntries(ctx context.Context, userId int64) ([]byte, error) {
 	queries, err := database.Queries(ctx)
 	if err != nil {
-		return nil, err
+		writeEntryResult(w, nil, err)
+		return
 	}
 
 	rows, err := queries.ListEntries(ctx, userId)
 	if err != nil {
-		return nil, err
+		writeEntryResult(w, nil, err)
+		return
 	}
 
 	response := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
 		date, err := util.NewDate(row.Date.Time.Format("2006-01-02"))
 		if err != nil {
-			return nil, err
+			writeEntryResult(w, nil, err)
+			return
 		}
 		amount := row.AmountRemaining
 		response = append(response, map[string]any{
@@ -79,25 +60,36 @@ func getEntries(ctx context.Context, userId int64) ([]byte, error) {
 			"date":             date,
 		})
 	}
-	return json.Marshal(response)
+	body, err := json.Marshal(response)
+	writeEntryResult(w, body, err)
 }
 
-func createEntry(ctx context.Context, body io.ReadCloser, userId int64) error {
+func CreateEntryHandler(w http.ResponseWriter, r *http.Request) {
+	userId, err := util.AuthenticateUser(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	ctx := r.Context()
+
 	e := entry{}
-	decoder := json.NewDecoder(body)
+	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&e); err != nil {
-		return errInvalidEntry
+		writeEntryResult(w, nil, errInvalidEntry)
+		return
 	}
 	e.UserId = userId
 
 	if !isValidEntry(e) {
-		return errInvalidEntry
+		writeEntryResult(w, nil, errInvalidEntry)
+		return
 	}
 
 	queries, err := database.Queries(ctx)
 	if err != nil {
-		return err
+		writeEntryResult(w, nil, err)
+		return
 	}
 
 	rowsAffected, err := queries.CreateEntry(ctx, repository.CreateEntryParams{
@@ -109,12 +101,26 @@ func createEntry(ctx context.Context, body io.ReadCloser, userId int64) error {
 		},
 	})
 	if err != nil {
-		return err
+		writeEntryResult(w, nil, err)
+		return
 	}
 	if rowsAffected == 0 {
-		return fmt.Errorf("%w: An entry for the date %s already exists", errInvalidEntry, e.Date.String())
+		writeEntryResult(w, nil, fmt.Errorf("%w: An entry for the date %s already exists", errInvalidEntry, e.Date.String()))
+		return
 	}
-	return nil
+	writeEntryResult(w, nil, nil)
+}
+
+func writeEntryResult(w http.ResponseWriter, response []byte, err error) {
+	if errors.Is(err, errInvalidEntry) {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(response)
 }
 
 func isValidEntry(entry entry) bool {

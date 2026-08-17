@@ -15,10 +15,9 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/auth", handler.AuthHandler)
-	mux.HandleFunc("/api/entries", handler.EntriesHandler)
-	mux.HandleFunc("/api/terms", handler.TermsHandler)
-	mux.HandleFunc("/api/terms/", handler.TermsHandler)
+	handler.RegisterAuth(mux)
+	handler.RegisterEntries(mux)
+	handler.RegisterTerms(mux)
 
 	log.Printf("starting server on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, mux))

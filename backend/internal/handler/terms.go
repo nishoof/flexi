@@ -4,10 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -38,14 +36,6 @@ type termUpdate struct {
 	DaysOff        []*util.Date `json:"days_off"`
 }
 
-type termsRoute int
-
-const (
-	termsRouteCollection termsRoute = iota // /api/terms
-	termsRouteByID                         // /api/terms/:id
-	termsRouteActivate                     // /api/terms/:id/activate
-)
-
 var (
 	defaultTermName       = "Spring 2026"
 	defaultStartDate, _   = time.Parse("2006-01-02", "2026-01-26")
@@ -53,131 +43,31 @@ var (
 	defaultStartingAmount = 3010.0
 )
 
-func TermsHandler(w http.ResponseWriter, r *http.Request) {
-	userId, err := util.AuthenticateUser(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return
-	}
-
-	route, termID, err := parseTermsPath(r.URL.Path)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-
-	var response []byte
-
-	switch route {
-	case termsRouteCollection:
-		response, err = termsRouteCollectionHandler(w, r, userId)
-	case termsRouteByID:
-		response, err = termsRouteByIdHandler(w, r, userId, termID)
-	case termsRouteActivate:
-		err = termsRouteActivateHandler(w, r, userId, termID)
-	}
-
-	if errors.Is(err, errInvalidTerm) {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if errors.Is(err, errTermNotFound) {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Write(response)
+func RegisterTerms(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/terms", ListTermsHandler)
+	mux.HandleFunc("POST /api/terms", CreateTermHandler)
+	mux.HandleFunc("PUT /api/terms", UpdateTermHandler)
+	mux.HandleFunc("GET /api/terms/{id}", GetTermHandler)
+	mux.HandleFunc("POST /api/terms/{id}/activate", ActivateTermHandler)
 }
 
-func termsRouteCollectionHandler(w http.ResponseWriter, r *http.Request, userId int64) ([]byte, error) {
-	var response []byte
-	var err error
+func ListTermsHandler(w http.ResponseWriter, r *http.Request) {
+	userId, ok := authenticateTermRequest(w, r)
+	if !ok {
+		return
+	}
 	ctx := r.Context()
 
-	switch r.Method {
-	case http.MethodGet:
-		response, err = listTerms(ctx, userId)
-	case http.MethodPut:
-		err = updateTerm(ctx, r.Body, userId)
-	case http.MethodPost:
-		response, err = createTerm(ctx, r.Body, userId)
-	default:
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		return nil, nil
-	}
-
-	return response, err
-}
-
-func termsRouteByIdHandler(w http.ResponseWriter, r *http.Request, userId, termID int64) ([]byte, error) {
-	var response []byte
-	var err error
-	ctx := r.Context()
-
-	switch r.Method {
-	case http.MethodGet:
-		response, err = getTermByID(ctx, userId, termID)
-	default:
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		return nil, nil
-	}
-
-	return response, err
-}
-
-func termsRouteActivateHandler(w http.ResponseWriter, r *http.Request, userId, termID int64) error {
-	var err error
-	ctx := r.Context()
-
-	switch r.Method {
-	case http.MethodPost:
-		err = activateTerm(ctx, userId, termID)
-	default:
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		return nil
-	}
-
-	return err
-}
-
-// parseTermsPath maps /api/terms, /api/terms/:id, and /api/terms/:id/activate.
-func parseTermsPath(path string) (termsRoute, int64, error) {
-	path = strings.TrimPrefix(path, "/api/terms")
-	path = strings.Trim(path, "/")
-	if path == "" {
-		return termsRouteCollection, 0, nil
-	}
-
-	parts := strings.Split(path, "/")
-	termID, err := strconv.ParseInt(parts[0], 10, 64)
-	if err != nil || termID <= 0 {
-		return 0, 0, errors.New("Not Found")
-	}
-
-	switch len(parts) {
-	case 1:
-		return termsRouteByID, termID, nil
-	case 2:
-		if parts[1] == "activate" {
-			return termsRouteActivate, termID, nil
-		}
-	}
-	return 0, 0, errors.New("Not Found")
-}
-
-func listTerms(ctx context.Context, userId int64) ([]byte, error) {
 	queries, err := database.Queries(ctx)
 	if err != nil {
-		return nil, err
+		writeTermResult(w, nil, err)
+		return
 	}
 
 	terms, err := queries.ListTerms(ctx, userId)
 	if err != nil {
-		return nil, err
+		writeTermResult(w, nil, err)
+		return
 	}
 
 	// Create a default active term when the user has none
@@ -196,31 +86,43 @@ func listTerms(ctx context.Context, userId int64) ([]byte, error) {
 			StartingAmount: defaultStartingAmount,
 		})
 		if err != nil {
-			return nil, err
+			writeTermResult(w, nil, err)
+			return
 		}
 		terms, err = queries.ListTerms(ctx, userId)
 		if err != nil {
-			return nil, err
+			writeTermResult(w, nil, err)
+			return
 		}
 	}
 
-	return marshalTerms(ctx, queries, terms)
+	response, err := marshalTerms(ctx, queries, terms)
+	writeTermResult(w, response, err)
 }
 
-func createTerm(ctx context.Context, body io.ReadCloser, userId int64) ([]byte, error) {
+func CreateTermHandler(w http.ResponseWriter, r *http.Request) {
+	userId, ok := authenticateTermRequest(w, r)
+	if !ok {
+		return
+	}
+	ctx := r.Context()
+
 	input := termUpdate{}
-	decoder := json.NewDecoder(body)
+	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&input); err != nil {
-		return nil, errInvalidTerm
+		writeTermResult(w, nil, errInvalidTerm)
+		return
 	}
 	if !isValidTermUpdate(input) {
-		return nil, errInvalidTerm
+		writeTermResult(w, nil, errInvalidTerm)
+		return
 	}
 
 	qtx, tx, err := database.QueriesWithTx(ctx)
 	if err != nil {
-		return nil, err
+		writeTermResult(w, nil, err)
+		return
 	}
 	defer tx.Rollback(ctx)
 
@@ -238,7 +140,8 @@ func createTerm(ctx context.Context, body io.ReadCloser, userId int64) ([]byte, 
 		StartingAmount: *input.StartingAmount,
 	})
 	if err != nil {
-		return nil, err
+		writeTermResult(w, nil, err)
+		return
 	}
 
 	for _, dayOff := range input.DaysOff {
@@ -249,25 +152,123 @@ func createTerm(ctx context.Context, body io.ReadCloser, userId int64) ([]byte, 
 				Valid: true,
 			},
 		}); err != nil {
-			return nil, err
+			writeTermResult(w, nil, err)
+			return
 		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return nil, err
+		writeTermResult(w, nil, err)
+		return
 	}
 
 	queries, err := database.Queries(ctx)
 	if err != nil {
-		return nil, err
+		writeTermResult(w, nil, err)
+		return
 	}
-	return marshalTerm(ctx, queries, term)
+	response, err := marshalTerm(ctx, queries, term)
+	writeTermResult(w, response, err)
 }
 
-func getTermByID(ctx context.Context, userId, termID int64) ([]byte, error) {
+func UpdateTermHandler(w http.ResponseWriter, r *http.Request) {
+	userId, ok := authenticateTermRequest(w, r)
+	if !ok {
+		return
+	}
+	ctx := r.Context()
+
+	update := termUpdate{}
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&update); err != nil {
+		writeTermResult(w, nil, errInvalidTerm)
+		return
+	}
+	if !isValidTermUpdate(update) {
+		writeTermResult(w, nil, errInvalidTerm)
+		return
+	}
+
+	qtx, tx, err := database.QueriesWithTx(ctx)
+	if err != nil {
+		writeTermResult(w, nil, err)
+		return
+	}
+	defer tx.Rollback(ctx)
+
+	term, err := qtx.GetOrCreateActiveTerm(ctx, repository.GetOrCreateActiveTermParams{
+		UserID: userId,
+		Name:   update.Name,
+		StartDate: pgtype.Date{
+			Time:  update.StartDate.Time,
+			Valid: true,
+		},
+		EndDate: pgtype.Date{
+			Time:  update.EndDate.Time,
+			Valid: true,
+		},
+		StartingAmount: *update.StartingAmount,
+	})
+	if err != nil {
+		writeTermResult(w, nil, err)
+		return
+	}
+
+	if err := qtx.UpdateActiveTerm(ctx, repository.UpdateActiveTermParams{
+		ID:   term.ID,
+		Name: update.Name,
+		StartDate: pgtype.Date{
+			Time:  update.StartDate.Time,
+			Valid: true,
+		},
+		EndDate: pgtype.Date{
+			Time:  update.EndDate.Time,
+			Valid: true,
+		},
+		StartingAmount: *update.StartingAmount,
+	}); err != nil {
+		writeTermResult(w, nil, err)
+		return
+	}
+
+	if err := qtx.DeleteDaysOffByTerm(ctx, term.ID); err != nil {
+		writeTermResult(w, nil, err)
+		return
+	}
+
+	for _, dayOff := range update.DaysOff {
+		if err := qtx.InsertDayOff(ctx, repository.InsertDayOffParams{
+			TermID: term.ID,
+			Date: pgtype.Date{
+				Time:  dayOff.Time,
+				Valid: true,
+			},
+		}); err != nil {
+			writeTermResult(w, nil, err)
+			return
+		}
+	}
+
+	writeTermResult(w, nil, tx.Commit(ctx))
+}
+
+func GetTermHandler(w http.ResponseWriter, r *http.Request) {
+	userId, ok := authenticateTermRequest(w, r)
+	if !ok {
+		return
+	}
+	termID, err := parseTermID(r)
+	if err != nil {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+	ctx := r.Context()
+
 	queries, err := database.Queries(ctx)
 	if err != nil {
-		return nil, err
+		writeTermResult(w, nil, err)
+		return
 	}
 
 	term, err := queries.GetTermByID(ctx, repository.GetTermByIDParams{
@@ -275,24 +276,40 @@ func getTermByID(ctx context.Context, userId, termID int64) ([]byte, error) {
 		UserID: userId,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, errTermNotFound
+		writeTermResult(w, nil, errTermNotFound)
+		return
 	}
 	if err != nil {
-		return nil, err
+		writeTermResult(w, nil, err)
+		return
 	}
 
-	return marshalTerm(ctx, queries, term)
+	response, err := marshalTerm(ctx, queries, term)
+	writeTermResult(w, response, err)
 }
 
-func activateTerm(ctx context.Context, userId, termID int64) error {
+func ActivateTermHandler(w http.ResponseWriter, r *http.Request) {
+	userId, ok := authenticateTermRequest(w, r)
+	if !ok {
+		return
+	}
+	termID, err := parseTermID(r)
+	if err != nil {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+	ctx := r.Context()
+
 	qtx, tx, err := database.QueriesWithTx(ctx)
 	if err != nil {
-		return err
+		writeTermResult(w, nil, err)
+		return
 	}
 	defer tx.Rollback(ctx)
 
 	if err := qtx.DeactivateTermsByUser(ctx, userId); err != nil {
-		return err
+		writeTermResult(w, nil, err)
+		return
 	}
 
 	_, err = qtx.ActivateTerm(ctx, repository.ActivateTermParams{
@@ -300,13 +317,48 @@ func activateTerm(ctx context.Context, userId, termID int64) error {
 		UserID: userId,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return errTermNotFound
+		writeTermResult(w, nil, errTermNotFound)
+		return
 	}
 	if err != nil {
-		return err
+		writeTermResult(w, nil, err)
+		return
 	}
 
-	return tx.Commit(ctx)
+	writeTermResult(w, nil, tx.Commit(ctx))
+}
+
+func authenticateTermRequest(w http.ResponseWriter, r *http.Request) (int64, bool) {
+	userId, err := util.AuthenticateUser(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return 0, false
+	}
+	return userId, true
+}
+
+func parseTermID(r *http.Request) (int64, error) {
+	termID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || termID <= 0 {
+		return 0, errors.New("Not Found")
+	}
+	return termID, nil
+}
+
+func writeTermResult(w http.ResponseWriter, response []byte, err error) {
+	if errors.Is(err, errInvalidTerm) {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if errors.Is(err, errTermNotFound) {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(response)
 }
 
 // getOrCreateTerm ensures an active term exists (used by test setup).
@@ -390,76 +442,6 @@ func termToResponse(ctx context.Context, queries *repository.Queries, term repos
 		IsActive:       term.IsActive,
 		DaysOff:        daysOffDates,
 	}, nil
-}
-
-func updateTerm(ctx context.Context, body io.ReadCloser, userId int64) error {
-	update := termUpdate{}
-	decoder := json.NewDecoder(body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&update); err != nil {
-		return errInvalidTerm
-	}
-
-	if !isValidTermUpdate(update) {
-		return errInvalidTerm
-	}
-
-	qtx, tx, err := database.QueriesWithTx(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-
-	term, err := qtx.GetOrCreateActiveTerm(ctx, repository.GetOrCreateActiveTermParams{
-		UserID: userId,
-		Name:   update.Name,
-		StartDate: pgtype.Date{
-			Time:  update.StartDate.Time,
-			Valid: true,
-		},
-		EndDate: pgtype.Date{
-			Time:  update.EndDate.Time,
-			Valid: true,
-		},
-		StartingAmount: *update.StartingAmount,
-	})
-	if err != nil {
-		return err
-	}
-
-	if err := qtx.UpdateActiveTerm(ctx, repository.UpdateActiveTermParams{
-		ID:   term.ID,
-		Name: update.Name,
-		StartDate: pgtype.Date{
-			Time:  update.StartDate.Time,
-			Valid: true,
-		},
-		EndDate: pgtype.Date{
-			Time:  update.EndDate.Time,
-			Valid: true,
-		},
-		StartingAmount: *update.StartingAmount,
-	}); err != nil {
-		return err
-	}
-
-	if err := qtx.DeleteDaysOffByTerm(ctx, term.ID); err != nil {
-		return err
-	}
-
-	for _, dayOff := range update.DaysOff {
-		if err := qtx.InsertDayOff(ctx, repository.InsertDayOffParams{
-			TermID: term.ID,
-			Date: pgtype.Date{
-				Time:  dayOff.Time,
-				Valid: true,
-			},
-		}); err != nil {
-			return err
-		}
-	}
-
-	return tx.Commit(ctx)
 }
 
 func isValidTermUpdate(update termUpdate) bool {

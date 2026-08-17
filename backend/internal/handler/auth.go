@@ -17,12 +17,11 @@ import (
 const jwtExpiration = 24 * time.Hour
 const noUserId = -1
 
-func AuthHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
+func RegisterAuth(mux *http.ServeMux) {
+	mux.HandleFunc("POST /api/auth", AuthHandler)
+}
 
+func AuthHandler(w http.ResponseWriter, r *http.Request) {
 	credential, err := extractCredentialFromRequest(r)
 	if err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)

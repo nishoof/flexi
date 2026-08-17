@@ -52,5 +52,10 @@ func TestAuthHandlerMethodNotAllowed(t *testing.T) {
 }
 
 func sendAuthRequest(method string, body io.Reader) *httptest.ResponseRecorder {
-	return sendRequest(method, "/api/auth", body, nil, AuthHandler)
+	mux := http.NewServeMux()
+	RegisterAuth(mux)
+	req, _ := http.NewRequest(method, "/api/auth", body)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+	return rr
 }

@@ -142,7 +142,15 @@ func sendEntriesRequestAuthed(method string, body io.Reader) *httptest.ResponseR
 }
 
 func sendEntriesRequest(method string, body io.Reader, auth *http.Cookie) *httptest.ResponseRecorder {
-	return sendRequest(method, "/api/entries", body, auth, EntriesHandler)
+	mux := http.NewServeMux()
+	RegisterEntries(mux)
+	req, _ := http.NewRequest(method, "/api/entries", body)
+	if auth != nil {
+		req.AddCookie(auth)
+	}
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+	return rr
 }
 
 func registerEntriesCleanup(t *testing.T, userId int64) {

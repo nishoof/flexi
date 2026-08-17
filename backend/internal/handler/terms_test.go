@@ -448,41 +448,6 @@ func TestTermsHandlerPOSTActivateNotFound(t *testing.T) {
 	assertStatusAndBody(t, http.StatusNotFound, rr.Code, rr.Body)
 }
 
-func TestParseTermsPath(t *testing.T) {
-	subTests := []struct {
-		path      string
-		wantRoute termsRoute
-		wantID    int64
-		wantErr   bool
-	}{
-		{"/api/terms", termsRouteCollection, 0, false},
-		{"/api/terms/", termsRouteCollection, 0, false},
-		{"/api/terms/42", termsRouteByID, 42, false},
-		{"/api/terms/42/activate", termsRouteActivate, 42, false},
-		{"/api/terms/abc", 0, 0, true},
-		{"/api/terms/0", 0, 0, true},
-		{"/api/terms/42/entries", 0, 0, true},
-	}
-
-	for _, st := range subTests {
-		t.Run(st.path, func(tt *testing.T) {
-			route, id, err := parseTermsPath(st.path)
-			if st.wantErr {
-				if err == nil {
-					tt.Fatal("expected error")
-				}
-				return
-			}
-			if err != nil {
-				tt.Fatalf("unexpected error: %v", err)
-			}
-			if route != st.wantRoute || id != st.wantID {
-				tt.Fatalf("got route=%v id=%d, want route=%v id=%d", route, id, st.wantRoute, st.wantID)
-			}
-		})
-	}
-}
-
 func listTermsAuthed(t *testing.T) []termResponse {
 	t.Helper()
 	rr := sendTermRequestAuthed(http.MethodGet, nil)
@@ -521,5 +486,13 @@ func sendTermRequestAuthedPath(method, path string, body io.Reader) *httptest.Re
 }
 
 func sendTermRequestPath(method, path string, body io.Reader, auth *http.Cookie) *httptest.ResponseRecorder {
-	return sendRequest(method, path, body, auth, TermsHandler)
+	mux := http.NewServeMux()
+	RegisterTerms(mux)
+	req, _ := http.NewRequest(method, path, body)
+	if auth != nil {
+		req.AddCookie(auth)
+	}
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+	return rr
 }
