@@ -23,16 +23,12 @@ type entry struct {
 }
 
 func RegisterEntries(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/entries", ListEntriesHandler)
-	mux.HandleFunc("POST /api/entries", CreateEntryHandler)
+	mux.HandleFunc("GET /api/entries", withAuth(ListEntriesHandler))
+	mux.HandleFunc("POST /api/entries", withAuth(CreateEntryHandler))
 }
 
 func ListEntriesHandler(w http.ResponseWriter, r *http.Request) {
-	userId, err := util.AuthenticateUser(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return
-	}
+	userId := userID(r)
 	ctx := r.Context()
 
 	queries, err := database.Queries(ctx)
@@ -65,11 +61,7 @@ func ListEntriesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func CreateEntryHandler(w http.ResponseWriter, r *http.Request) {
-	userId, err := util.AuthenticateUser(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return
-	}
+	userId := userID(r)
 	ctx := r.Context()
 
 	e := entry{}

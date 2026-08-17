@@ -44,18 +44,15 @@ var (
 )
 
 func RegisterTerms(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/terms", ListTermsHandler)
-	mux.HandleFunc("POST /api/terms", CreateTermHandler)
-	mux.HandleFunc("PUT /api/terms", UpdateTermHandler)
-	mux.HandleFunc("GET /api/terms/{id}", GetTermHandler)
-	mux.HandleFunc("POST /api/terms/{id}/activate", ActivateTermHandler)
+	mux.HandleFunc("GET /api/terms", withAuth(ListTermsHandler))
+	mux.HandleFunc("POST /api/terms", withAuth(CreateTermHandler))
+	mux.HandleFunc("PUT /api/terms", withAuth(UpdateTermHandler))
+	mux.HandleFunc("GET /api/terms/{id}", withAuth(GetTermHandler))
+	mux.HandleFunc("POST /api/terms/{id}/activate", withAuth(ActivateTermHandler))
 }
 
 func ListTermsHandler(w http.ResponseWriter, r *http.Request) {
-	userId, ok := authenticateTermRequest(w, r)
-	if !ok {
-		return
-	}
+	userId := userID(r)
 	ctx := r.Context()
 
 	queries, err := database.Queries(ctx)
@@ -101,10 +98,7 @@ func ListTermsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func CreateTermHandler(w http.ResponseWriter, r *http.Request) {
-	userId, ok := authenticateTermRequest(w, r)
-	if !ok {
-		return
-	}
+	userId := userID(r)
 	ctx := r.Context()
 
 	input := termUpdate{}
@@ -172,10 +166,7 @@ func CreateTermHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateTermHandler(w http.ResponseWriter, r *http.Request) {
-	userId, ok := authenticateTermRequest(w, r)
-	if !ok {
-		return
-	}
+	userId := userID(r)
 	ctx := r.Context()
 
 	update := termUpdate{}
@@ -254,10 +245,7 @@ func UpdateTermHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetTermHandler(w http.ResponseWriter, r *http.Request) {
-	userId, ok := authenticateTermRequest(w, r)
-	if !ok {
-		return
-	}
+	userId := userID(r)
 	termID, err := parseTermID(r)
 	if err != nil {
 		http.Error(w, "Not Found", http.StatusNotFound)
@@ -289,10 +277,7 @@ func GetTermHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ActivateTermHandler(w http.ResponseWriter, r *http.Request) {
-	userId, ok := authenticateTermRequest(w, r)
-	if !ok {
-		return
-	}
+	userId := userID(r)
 	termID, err := parseTermID(r)
 	if err != nil {
 		http.Error(w, "Not Found", http.StatusNotFound)
@@ -326,15 +311,6 @@ func ActivateTermHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeTermResult(w, nil, tx.Commit(ctx))
-}
-
-func authenticateTermRequest(w http.ResponseWriter, r *http.Request) (int64, bool) {
-	userId, err := util.AuthenticateUser(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return 0, false
-	}
-	return userId, true
 }
 
 func parseTermID(r *http.Request) (int64, error) {
