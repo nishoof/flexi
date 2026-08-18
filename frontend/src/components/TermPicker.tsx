@@ -63,7 +63,7 @@ export default function TermPicker({
       </button>
 
       {isOpen && (
-        <div className="absolute mt-2 min-w-64 overflow-hidden rounded-xl border border-(--border) bg-(--background-light)">
+        <div className="absolute z-20 mt-2 min-w-64 overflow-hidden rounded-xl border border-(--border) bg-(--background-light) shadow-lg">
           {terms.map((term) => {
             const isActiveTerm = term.id === activeTerm.id;
             return (

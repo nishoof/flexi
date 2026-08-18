@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import AddEntryModal from "../components/AddEntryModal";
 import EditTermModal from "../components/EditTermModal";
 import EntriesTable from "../components/EntriesTable";
+import FlexiChart from "../components/FlexiChart";
 import LoadingView from "../components/LoadingView";
 import NewTermModal from "../components/NewTermModal";
 import SignInScreen from "../components/SignInScreen";
@@ -131,9 +132,7 @@ export default function OverviewPage() {
       try {
         await createEntry(amountRemaining, date);
       } catch (error) {
-        setEntries((current) =>
-          current.filter((entry) => entry.date !== date),
-        );
+        setEntries((current) => current.filter((entry) => entry.date !== date));
         handleRequestError(error, "Could not save entry");
       }
     },
@@ -144,9 +143,7 @@ export default function OverviewPage() {
     const previousTerms = terms;
 
     setTerm(next);
-    setTerms((current) =>
-      current.map((t) => (t.id === next.id ? next : t)),
-    );
+    setTerms((current) => current.map((t) => (t.id === next.id ? next : t)));
 
     try {
       await updateTerm({
@@ -237,6 +234,8 @@ export default function OverviewPage() {
         <StatCard title="Ending Projection" value={stats.endingProjection} />
         <StatCard title="Remaining per Day" value={stats.remainingPerDay} />
       </div>
+
+      <FlexiChart entries={entries} term={term} />
 
       <EditTermModal
         key={`${term.id}-${term.daysOff.join(",")}-${term.startDate}-${term.endDate}-${term.startingAmount}`} // Force remount when term settings change
