@@ -2,17 +2,15 @@ package handler
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/nishoof/flexi/backend/internal/apierr"
 	"github.com/nishoof/flexi/backend/internal/database"
 	"github.com/nishoof/flexi/backend/internal/repository"
 	"github.com/nishoof/flexi/backend/internal/util"
 )
-
-var errInvalidEntry = errors.New("Invalid entry data")
 
 // Entry represents a flexi entry (how much flexi a user has remaining at a given date).
 // Pointers are used to distinguish between missing and zero values
@@ -23,32 +21,29 @@ type entry struct {
 }
 
 func RegisterEntries(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/entries", withAuth(ListEntriesHandler))
-	mux.HandleFunc("POST /api/entries", withAuth(CreateEntryHandler))
+	mux.HandleFunc("GET /api/entries", Handle(withAuth(ListEntriesHandler)))
+	mux.HandleFunc("POST /api/entries", Handle(withAuth(CreateEntryHandler)))
 }
 
-func ListEntriesHandler(w http.ResponseWriter, r *http.Request) {
+func ListEntriesHandler(w http.ResponseWriter, r *http.Request) *apierr.Error {
 	userId := userID(r)
 	ctx := r.Context()
 
 	queries, err := database.Queries(ctx)
 	if err != nil {
-		writeEntryResult(w, nil, err)
-		return
+		return apierr.Internal(err)
 	}
 
 	rows, err := queries.ListEntries(ctx, userId)
 	if err != nil {
-		writeEntryResult(w, nil, err)
-		return
+		return apierr.Internal(err)
 	}
 
 	response := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
 		date, err := util.NewDate(row.Date.Time.Format("2006-01-02"))
 		if err != nil {
-			writeEntryResult(w, nil, err)
-			return
+			return apierr.Internal(err)
 		}
 		amount := row.AmountRemaining
 		response = append(response, map[string]any{
@@ -57,10 +52,14 @@ func ListEntriesHandler(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	body, err := json.Marshal(response)
-	writeEntryResult(w, body, err)
+	if err != nil {
+		return apierr.Internal(err)
+	}
+	w.Write(body)
+	return nil
 }
 
-func CreateEntryHandler(w http.ResponseWriter, r *http.Request) {
+func CreateEntryHandler(w http.ResponseWriter, r *http.Request) *apierr.Error {
 	userId := userID(r)
 	ctx := r.Context()
 
@@ -68,20 +67,17 @@ func CreateEntryHandler(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&e); err != nil {
-		writeEntryResult(w, nil, errInvalidEntry)
-		return
+		return apierr.BadRequest("Invalid entry data")
 	}
 	e.UserId = userId
 
 	if !isValidEntry(e) {
-		writeEntryResult(w, nil, errInvalidEntry)
-		return
+		return apierr.BadRequest("Invalid entry data")
 	}
 
 	queries, err := database.Queries(ctx)
 	if err != nil {
-		writeEntryResult(w, nil, err)
-		return
+		return apierr.Internal(err)
 	}
 
 	rowsAffected, err := queries.CreateEntry(ctx, repository.CreateEntryParams{
@@ -93,26 +89,12 @@ func CreateEntryHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 	if err != nil {
-		writeEntryResult(w, nil, err)
-		return
+		return apierr.Internal(err)
 	}
 	if rowsAffected == 0 {
-		writeEntryResult(w, nil, fmt.Errorf("%w: An entry for the date %s already exists", errInvalidEntry, e.Date.String()))
-		return
+		return apierr.BadRequest(fmt.Sprintf("An entry for the date %s already exists", e.Date.String()))
 	}
-	writeEntryResult(w, nil, nil)
-}
-
-func writeEntryResult(w http.ResponseWriter, response []byte, err error) {
-	if errors.Is(err, errInvalidEntry) {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Write(response)
+	return nil
 }
 
 func isValidEntry(entry entry) bool {

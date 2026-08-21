@@ -3,12 +3,12 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/nishoof/flexi/backend/internal/apierr"
 	"github.com/nishoof/flexi/backend/internal/database"
 	"github.com/nishoof/flexi/backend/internal/util"
 	"google.golang.org/api/idtoken"
@@ -18,18 +18,16 @@ const jwtExpiration = 24 * time.Hour
 const noUserId = -1
 
 func RegisterAuth(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/auth", AuthHandler)
+	mux.HandleFunc("POST /api/auth", Handle(AuthHandler))
 }
 
-func AuthHandler(w http.ResponseWriter, r *http.Request) {
+func AuthHandler(w http.ResponseWriter, r *http.Request) *apierr.Error {
 	credential, err := extractCredentialFromRequest(r)
 	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
+		return apierr.BadRequest("Invalid request body")
 	}
 	if credential == "" {
-		http.Error(w, "Credential is required", http.StatusBadRequest)
-		return
+		return apierr.BadRequest("Credential is required")
 	}
 
 	// Verify the Google JWT token
@@ -37,30 +35,25 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
 	googleClientID := os.Getenv("GOOGLE_OAUTH_CLIENT_ID")
 	payload, err := idtoken.Validate(ctx, credential, googleClientID)
 	if err != nil {
-		http.Error(w, "Invalid Google credential", http.StatusUnauthorized)
-		return
+		return apierr.Unauthorized("Invalid Google credential")
 	}
 
 	// Extract user information from the payload
 	email := payload.Claims["email"].(string)
 	if email == "" {
-		http.Error(w, "Email not found in Google token", http.StatusUnauthorized)
-		return
+		return apierr.Unauthorized("Email not found in Google token")
 	}
 
 	// Check if user exists in the database, create if not
 	userId, err := getOrCreateUser(ctx, email)
 	if err != nil {
-		fmt.Println("Error in getOrCreateUser:", err)
-		http.Error(w, "Failed to get or create user", http.StatusInternalServerError)
-		return
+		return apierr.Internal(err)
 	}
 
 	// Generate our own JWT
 	token, err := generateJWT(userId)
 	if err != nil {
-		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
-		return
+		return apierr.Internal(err)
 	}
 
 	// Set JWT as httpOnly cookie
@@ -73,6 +66,7 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
 		Secure:   true, // Only send over HTTPS
 		SameSite: http.SameSiteNoneMode,
 	})
+	return nil
 }
 
 func extractCredentialFromRequest(r *http.Request) (string, error) {

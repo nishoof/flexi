@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/nishoof/flexi/backend/internal/apierr"
 	"github.com/nishoof/flexi/backend/internal/util"
 )
 
@@ -11,23 +12,15 @@ type contextKey int
 
 const userIDKey contextKey = iota
 
-// withAuth returns a handler function that handles auth then calls the given
-// handler function.
-//
-// If the request is not from an authenticated user, the handler writes a 401
-// and returns.
-//
-// If the request is from an authenticated user, the handler creates a context
-// with the userId and calls the given handler function with that context.
-func withAuth(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+// withAuth checks auth, then calls next with the user id in context.
+func withAuth(next apiHandler) apiHandler {
+	return func(w http.ResponseWriter, r *http.Request) *apierr.Error {
 		userId, err := util.AuthenticateUser(r)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
-			return
+			return apierr.Unauthorized("Unauthorized")
 		}
 		ctx := context.WithValue(r.Context(), userIDKey, userId)
-		next(w, r.WithContext(ctx))
+		return next(w, r.WithContext(ctx))
 	}
 }
 
